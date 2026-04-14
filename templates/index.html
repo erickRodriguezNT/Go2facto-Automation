@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go2Facto · Automation v2</title>
+  <style>
+    /* ── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f18;
+      --surface:  #161927;
+      --surface2: #1e2235;
+      --border:   #252a40;
+      --accent:   #4f6ef7;
+      --accentH:  #6b84ff;
+      --green:    #22c55e;
+      --orange:   #f59e0b;
+      --red:      #ef4444;
+      --purple:   #a78bfa;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --radius:   10px;
+      --font:     'Segoe UI', system-ui, sans-serif;
+      --mono:     'Cascadia Code', 'Consolas', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 20px 16px 60px;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.5px;
+    }
+    .header h1 span { color: var(--accent); }
+    .header p { margin-top: 5px; color: var(--muted); font-size: .85rem; }
+    .version-badge {
+      display: inline-block;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      font-size: .68rem;
+      padding: 2px 10px;
+      color: var(--accent);
+      margin-top: 6px;
+      font-weight: 600;
+      letter-spacing: .5px;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .container { max-width: 1020px; margin: 0 auto; }
+
+    /* ── Progress Steps ──────────────────────────────────────── */
+    .steps {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .76rem;
+      color: var(--muted);
+      transition: color .2s;
+    }
+    .step .num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: .7rem;
+      flex-shrink: 0;
+      transition: background .2s;
+    }
+    .step.done   { color: var(--green); }
+    .step.done .num  { background: var(--green); color: #fff; }
+    .step.active { color: var(--accent); }
+    .step.active .num { background: var(--accent); color: #fff; }
+    .step-sep { color: var(--border); font-size: 1rem; line-height: 1; }
+
+    /* ── Card ────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+    .card-title {
+      font-size: .72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Form ────────────────────────────────────────────────── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 700px) { .grid-3 { grid-template-columns: 1fr; } }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    label  { font-size: .8rem; color: var(--muted); }
+
+    input[type="text"], input[type="number"], select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: .9rem;
+      padding: 8px 11px;
+      transition: border-color .2s;
+      outline: none;
+      width: 100%;
+      font-family: var(--font);
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+
+    .hint { font-size: .72rem; color: var(--muted); }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    button {
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity .15s, transform .1s;
+      font-family: var(--font);
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accentH); }
+    .btn-success { background: var(--green); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #16a34a; }
+    .btn-orange  { background: var(--orange); color: #000; }
+    .btn-orange:hover:not(:disabled) { background: #d97706; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Tipo badge ──────────────────────────────────────────── */
+    .tipo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 12px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .tipo-factura          { background: #1e3a5f; color: #93c5fd; border: 1px solid var(--accent); }
+    .tipo-anticipo         { background: #1a2e1a; color: #86efac; border: 1px solid var(--green); }
+    .tipo-aplicacion_anticipo { background: #2d1e3a; color: #c4b5fd; border: 1px solid var(--purple); }
+    .tipo-cancelacion      { background: #3a1a1a; color: #fca5a5; border: 1px solid var(--red); }
+
+    /* ── Dynamic fields container ────────────────────────────── */
+    #camposContainer .campo-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    #camposContainer .campo-fijo input {
+      border-color: var(--green);
+      color: #86efac;
+    }
+    .campo-tag {
+      font-family: var(--mono);
+      font-size: .72rem;
+      color: var(--orange);
+      margin-bottom: 3px;
+    }
+
+    /* ── Previews ────────────────────────────────────────────── */
+    .preview {
+      width: 100%;
+      min-height: 160px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #93c5fd;
+      font-family: var(--mono);
+      font-size: .78rem;
+      padding: 12px;
+      outline: none;
+      line-height: 1.5;
+    }
+    .preview.green  { color: #86efac; }
+    .preview.purple { color: #c4b5fd; }
+
+    /* ── Mensajes ─────────────────────────────────────────────── */
+    .msg {
+      padding: 9px 14px;
+      border-radius: 6px;
+      font-size: .82rem;
+      margin-top: 10px;
+      display: none;
+    }
+    .msg.show    { display: block; }
+    .msg.success { background: #14532d; border: 1px solid var(--green);  color: #bbf7d0; }
+    .msg.error   { background: #450a0a; border: 1px solid var(--red);    color: #fecaca; }
+    .msg.info    { background: #1e3a5f; border: 1px solid var(--accent); color: #bfdbfe; }
+    .msg.warn    { background: #451a03; border: 1px solid var(--orange); color: #fde68a; }
+
+    /* ── Status badge ────────────────────────────────────────── */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 16px;
+      border-radius: 20px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .s2xx { background: #14532d; color: #4ade80; border: 1px solid var(--green); }
+    .s4xx { background: #451a03; color: #fcd34d; border: 1px solid var(--orange); }
+    .s5xx { background: #450a0a; color: #fca5a5; border: 1px solid var(--red); }
+
+    /* ── Response body ───────────────────────────────────────── */
+    #responseBody {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: var(--mono);
+      font-size: .76rem;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+    #responseBody.show { display: block; }
+
+    /* ── Replacements list ───────────────────────────────────── */
+    .repl-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .repl-item {
+      background: var(--surface2);
+      border-left: 3px solid var(--green);
+      padding: 5px 10px;
+      border-radius: 4px;
+      font-family: var(--mono);
+      font-size: .78rem;
+      color: #86efac;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────── */
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .55s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Collapsible ─────────────────────────────────────────── */
+    details summary {
+      cursor: pointer;
+      user-select: none;
+      color: var(--muted);
+      font-size: .8rem;
+      padding: 4px 0;
+      outline: none;
+    }
+    details summary:hover { color: var(--text); }
+    details[open] summary { color: var(--accent); }
+    details[open] { padding-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ── Header ──────────────────────────────────────────── -->
+  <div class="header">
+    <h1>Go2<span>Facto</span> · Automation</h1>
+    <p>Modifica campos XML por tipo de request y envía al endpoint configurado</p>
+    <span class="version-badge">v2 · Multi-tipo</span>
+  </div>
+
+  <!-- ── Progress Steps ──────────────────────────────────── -->
+  <div class="steps" id="progressSteps">
+    <div class="step active" id="step1"><span class="num">1</span>Selección</div>
+    <span class="step-sep">›</span>
+    <div class="step" id="step2"><span class="num">2</span>Datos</div>
+    <span class="step-sep">›</span>
+    <div class="step" id="step3"><span class="num">3</span>Procesar</div>
+    <span class="step-sep">›</span>
+    <div class="step" id="step4"><span class="num">4</span>Enviar</div>
+    <span class="step-sep">›</span>
+    <div class="step" id="step5"><span class="num">5</span>Resultado</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 1 · Configuración
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--accent)"></span>
+      Configuración
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label for="carpeta">Carpeta de requests</label>
+        <input type="text" id="carpeta" placeholder="Ruta de la carpeta (dejar vacío = carpeta actual)" />
+        <span class="hint">Ruta local donde están los archivos .json</span>
+      </div>
+      <div class="field">
+        <label for="endpoint">Endpoint *</label>
+        <input type="text" id="endpoint" value="{{ default_endpoint }}" />
+        <span class="hint">URL del servicio que recibirá el request</span>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <!-- ── Sección 2 · Selección de Request ────────────── -->
+    <div class="card-title" style="margin-bottom:10px">
+      <span class="dot" style="background:var(--orange)"></span>
+      Selección de Request
+    </div>
+
+    <div class="grid-2" style="margin-bottom:14px">
+      <div class="field">
+        <label for="archivoSelect">Archivo JSON</label>
+        <select id="archivoSelect" onchange="onArchivoChange()">
+          <option value="">-- Haz clic en "Actualizar lista" --</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="tipoSelect">Tipo de Request</label>
+        <select id="tipoSelect" onchange="onTipoChange()">
+          <option value="">-- Seleccionar --</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn-outline" id="btnRefresh" onclick="actualizarLista()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Actualizar lista
+      </button>
+      <button class="btn-primary" id="btnLoad" onclick="cargarArchivo()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Cargar archivo
+      </button>
+      <button class="btn-success" id="btnProcess" onclick="procesarXml()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        Procesar XML
+      </button>
+      <button class="btn-orange" id="btnSend" onclick="enviarRequest()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Enviar Request
+      </button>
+      <button class="btn-outline" id="btnDownload" onclick="descargarJson()" disabled>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar JSON
+      </button>
+    </div>
+
+    <div id="msgSeleccion" class="msg"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 3 · Datos de Entrada (campos dinámicos)
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card" id="cardDatos" style="display:none">
+    <div class="card-title">
+      <span class="dot" style="background:var(--green)"></span>
+      Datos de Entrada
+      <span id="tipoBadge" class="tipo-badge"></span>
+    </div>
+
+    <div id="camposContainer"></div>
+
+    <div id="msgDatos" class="msg"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 4 · XML Original
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--orange)"></span>
+      XML Original (decodificado de Base64)
+    </div>
+    <textarea class="preview" id="xmlOriginal" readonly
+      placeholder="Aquí aparecerá el XML decodificado del JSON seleccionado..."></textarea>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 5 · XML Actualizado
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--green)"></span>
+      XML Actualizado (campos reemplazados)
+    </div>
+    <textarea class="preview green" id="xmlActualizado" readonly
+      placeholder="Aquí aparecerá el XML con los campos reemplazados..."></textarea>
+    <div id="replList" class="repl-list"></div>
+    <div id="msgProcess" class="msg"></div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 6 · Request Final
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--purple)"></span>
+      Request Final (JSON con campo xml actualizado en Base64)
+    </div>
+    <textarea class="preview purple" id="jsonFinal" readonly
+      placeholder="Aquí aparecerá el JSON completo listo para enviar..."></textarea>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════
+       SECCIÓN 7 · Resultado de Ejecución
+  ══════════════════════════════════════════════════════════ -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--red)"></span>
+      Resultado de Ejecución
+    </div>
+
+    <div id="resultIdle" class="msg info show">
+      Completa los pasos anteriores y haz clic en <strong>Enviar Request</strong> para ver el resultado.
+    </div>
+
+    <div id="resultContainer" style="display:none">
+      <span class="status-badge" id="statusBadge"></span>
+      <p style="font-size:.8rem; color:var(--muted); margin-bottom:6px" id="endpointUsedLabel"></p>
+
+      <details open>
+        <summary>Respuesta del servicio</summary>
+        <div id="responseBody" style="margin-top:8px"></div>
+      </details>
+    </div>
+
+    <div id="msgResult" class="msg"></div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ══════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+// ── Estado ────────────────────────────────────────────────
+const state = {
+  carpeta:     "",
+  filename:    "",
+  tipo:        "",
+  tiposConfig: {},     // {key: {label, campos[]}}
+  loaded:      false,
+  processed:   false,
+  requestJson: null,
+};
+
+// ── Utilidades visuales ───────────────────────────────────
+
+function setMsg(id, html, type) {
+  // type: 'success' | 'error' | 'info' | 'warn'
+  const el = document.getElementById(id);
+  el.className = `msg ${type} show`;
+  el.innerHTML = html;
+}
+function clearMsg(id) {
+  const el = document.getElementById(id);
+  el.className = "msg";
+  el.innerHTML = "";
+}
+
+function setStep(n) {
+  const steps = ["step1","step2","step3","step4","step5"];
+  steps.forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.classList.remove("done","active");
+    if (i + 1 < n)  el.classList.add("done");
+    if (i + 1 === n) el.classList.add("active");
+  });
+}
+
+function spinBtn(id, on) {
+  const btn = document.getElementById(id);
+  if (on) {
+    btn.disabled = true;
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner"></span> Procesando...`;
+  } else {
+    btn.disabled = false;
+    if (btn._orig) btn.innerHTML = btn._orig;
+  }
+}
+
+// ── Cargar tipos de request desde API ────────────────────
+
+async function cargarTipos() {
+  try {
+    const res  = await fetch("/api/tipos");
+    const data = await res.json();
+    state.tiposConfig = data;
+
+    const sel = document.getElementById("tipoSelect");
+    sel.innerHTML = '<option value="">-- Seleccionar tipo --</option>';
+    for (const [key, cfg] of Object.entries(data)) {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = cfg.label;
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    console.error("Error cargando tipos:", e);
+  }
+}
+
+// ── Actualizar lista de archivos JSON ─────────────────────
+
+async function actualizarLista() {
+  clearMsg("msgSeleccion");
+  spinBtn("btnRefresh", true);
+
+  const carpeta = document.getElementById("carpeta").value.trim();
+
+  try {
+    const res  = await fetch("/api/files", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carpeta }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      setMsg("msgSeleccion", `<strong>Error:</strong> ${data.error}`, "error");
+      return;
+    }
+
+    state.carpeta = data.carpeta;
+    const sel = document.getElementById("archivoSelect");
+    sel.innerHTML = '<option value="">-- Seleccionar archivo --</option>';
+
+    if (data.archivos.length === 0) {
+      setMsg("msgSeleccion", "No se encontraron archivos .json en la carpeta.", "warn");
+      return;
+    }
+
+    data.archivos.forEach(f => {
+      const opt = document.createElement("option");
+      opt.value = f;
+      opt.textContent = f;
+      sel.appendChild(opt);
+    });
+
+    setMsg("msgSeleccion",
+      `✓ ${data.archivos.length} archivo(s) encontrado(s) en: <code>${data.carpeta}</code>`,
+      "success");
+
+  } catch (e) {
+    setMsg("msgSeleccion", `<strong>Error de red:</strong> ${e.message}`, "error");
+  } finally {
+    spinBtn("btnRefresh", false);
+  }
+}
+
+// ── Eventos de selects ────────────────────────────────────
+
+function onArchivoChange() {
+  const archivo = document.getElementById("archivoSelect").value;
+  document.getElementById("btnLoad").disabled = !archivo;
+  state.filename = archivo;
+  // Limpiar estado previo
+  state.loaded    = false;
+  state.processed = false;
+  state.requestJson = null;
+  document.getElementById("btnProcess").disabled  = true;
+  document.getElementById("btnSend").disabled     = true;
+  document.getElementById("btnDownload").disabled = true;
+  document.getElementById("xmlOriginal").value    = "";
+  document.getElementById("xmlActualizado").value = "";
+  document.getElementById("jsonFinal").value      = "";
+  document.getElementById("replList").innerHTML   = "";
+  document.getElementById("resultContainer").style.display = "none";
+  document.getElementById("resultIdle").classList.add("show");
+  clearMsg("msgProcess");
+  clearMsg("msgResult");
+}
+
+function onTipoChange() {
+  const tipo = document.getElementById("tipoSelect").value;
+  state.tipo = tipo;
+  if (tipo && state.loaded) {
+    renderCampos(tipo, state.valoresActuales || {});
+  }
+}
+
+// ── Render dinámico de campos según tipo ──────────────────
+
+function renderCampos(tipo, valoresActuales) {
+  const cfg = state.tiposConfig[tipo];
+  if (!cfg) return;
+
+  // Badge de tipo
+  const badge = document.getElementById("tipoBadge");
+  badge.textContent = cfg.label;
+  badge.className   = `tipo-badge tipo-${tipo}`;
+
+  const container = document.getElementById("camposContainer");
+  container.innerHTML = "";
+
+  // Grid dinámico: 1 campo → full width, 2 → 50/50, 3+ → 3 columnas
+  const cols  = cfg.campos.length === 1 ? 1 : cfg.campos.length === 2 ? 2 : 3;
+  const grid  = document.createElement("div");
+  grid.className = cols === 1 ? "" : cols === 2 ? "grid-2" : "grid-3";
+  grid.style.marginBottom = "0";
+
+  cfg.campos.forEach(campo_cfg => {
+    const tag       = campo_cfg.campo;
+    const esFijo    = !!campo_cfg.valor_fijo;
+    const valorInit = campo_cfg.valor_fijo
+                    || valoresActuales?.[tag]
+                    || "";
+
+    const wrap = document.createElement("div");
+    wrap.className = `campo-item${esFijo ? " campo-fijo" : ""}`;
+
+    wrap.innerHTML = `
+      <div class="campo-tag">&lt;${tag}&gt;</div>
+      <div class="field">
+        <label for="campo_${tag}">
+          ${campo_cfg.label}
+          ${campo_cfg.requerido ? '<span style="color:var(--red)">*</span>' : '<span style="color:var(--muted);font-size:.7rem"> (opcional)</span>'}
+        </label>
+        <input
+          type="text"
+          id="campo_${tag}"
+          data-campo="${tag}"
+          placeholder="${campo_cfg.placeholder || ''}"
+          value="${escHtml(String(valorInit))}"
+          ${esFijo ? 'style="border-color:var(--green); color:#86efac"' : ''}
+        />
+        ${esFijo ? `<span class="hint">Valor fijo pre-cargado (editable)</span>` : ""}
+      </div>
+    `;
+    grid.appendChild(wrap);
+  });
+
+  container.appendChild(grid);
+  document.getElementById("cardDatos").style.display = "block";
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,"&amp;").replace(/"/g,"&quot;")
+            .replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+function getCamposValues() {
+  const result = {};
+  document.querySelectorAll("#camposContainer [data-campo]").forEach(input => {
+    result[input.dataset.campo] = input.value.trim();
+  });
+  return result;
+}
+
+// ── 1. Cargar archivo ─────────────────────────────────────
+
+async function cargarArchivo() {
+  clearMsg("msgSeleccion");
+  spinBtn("btnLoad", true);
+
+  const filename = document.getElementById("archivoSelect").value;
+  const carpeta  = state.carpeta || document.getElementById("carpeta").value.trim();
+
+  if (!filename) {
+    setMsg("msgSeleccion", "Selecciona un archivo de la lista.", "error");
+    spinBtn("btnLoad", false);
+    return;
+  }
+
+  try {
+    const res  = await fetch("/api/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ carpeta, filename }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      setMsg("msgSeleccion", `<strong>Error:</strong> ${data.error}`, "error");
+      return;
+    }
+
+    // Actualizar estado
+    state.loaded        = true;
+    state.filename      = filename;
+    state.valoresActuales = data.valoresActuales;
+
+    // Poblar XML original
+    document.getElementById("xmlOriginal").value = data.xmlDecoded;
+
+    // Auto-seleccionar tipo detectado si aún no hay selección
+    const tipoSel = document.getElementById("tipoSelect");
+    if (!tipoSel.value && data.tipoDetectado) {
+      tipoSel.value = data.tipoDetectado;
+      state.tipo    = data.tipoDetectado;
+    }
+
+    // Render de campos dinámicos
+    if (state.tipo) {
+      renderCampos(state.tipo, data.valoresActuales);
+    }
+
+    document.getElementById("btnProcess").disabled = false;
+
+    setMsg("msgSeleccion",
+      `✓ ${data.message}`,
+      "success");
+    setStep(2);
+
+  } catch (e) {
+    setMsg("msgSeleccion", `<strong>Error de red:</strong> ${e.message}`, "error");
+  } finally {
+    spinBtn("btnLoad", false);
+  }
+}
+
+// ── 2. Procesar XML ───────────────────────────────────────
+
+async function procesarXml() {
+  clearMsg("msgProcess");
+  clearMsg("msgDatos");
+
+  const tipo = document.getElementById("tipoSelect").value;
+  if (!tipo) {
+    setMsg("msgDatos", "Selecciona el tipo de request antes de procesar.", "error");
+    return;
+  }
+  if (!state.loaded) {
+    setMsg("msgSeleccion", "Primero carga un archivo.", "error");
+    return;
+  }
+
+  const campos = getCamposValues();
+  spinBtn("btnProcess", true);
+
+  try {
+    const res  = await fetch("/api/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        carpeta:  state.carpeta,
+        filename: state.filename,
+        tipo,
+        campos,
+      }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      setMsg("msgProcess", `<strong>Error:</strong> ${data.error}`, "error");
+      return;
+    }
+
+    // Poblar vistas previas
+    document.getElementById("xmlActualizado").value = data.xmlUpdated;
+    document.getElementById("jsonFinal").value      = JSON.stringify(data.requestJson, null, 2);
+
+    // Lista de reemplazos
+    const replList = document.getElementById("replList");
+    replList.innerHTML = "";
+    (data.reemplazosRealizados || []).forEach(item => {
+      const div = document.createElement("div");
+      div.className = "repl-item";
+      div.textContent = item;
+      replList.appendChild(div);
+    });
+
+    state.processed   = true;
+    state.requestJson = data.requestJson;
+
+    document.getElementById("btnSend").disabled     = false;
+    document.getElementById("btnDownload").disabled = false;
+
+    setMsg("msgProcess", `✓ ${data.message}`, "success");
+    setStep(3);
+
+  } catch (e) {
+    setMsg("msgProcess", `<strong>Error de red:</strong> ${e.message}`, "error");
+  } finally {
+    spinBtn("btnProcess", false);
+  }
+}
+
+// ── 3. Enviar Request ─────────────────────────────────────
+
+async function enviarRequest() {
+  clearMsg("msgResult");
+  const endpoint = document.getElementById("endpoint").value.trim();
+
+  if (!endpoint) {
+    setMsg("msgResult", "<strong>Error:</strong> El campo Endpoint es requerido.", "error");
+    return;
+  }
+  if (!state.requestJson) {
+    setMsg("msgResult", "<strong>Error:</strong> Primero procesa el XML.", "error");
+    return;
+  }
+
+  spinBtn("btnSend", true);
+  document.getElementById("resultIdle").classList.remove("show");
+
+  try {
+    const res  = await fetch("/api/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint, requestJson: state.requestJson }),
+    });
+    const data = await res.json();
+
+    const container = document.getElementById("resultContainer");
+    container.style.display = "block";
+
+    if (!data.ok) {
+      setMsg("msgResult", `<strong>Error:</strong> ${data.error}`, "error");
+      return;
+    }
+
+    // Status badge
+    const badge = document.getElementById("statusBadge");
+    badge.textContent = `HTTP ${data.statusCode}`;
+    badge.className = "status-badge";
+    if (data.statusCode >= 200 && data.statusCode < 300) {
+      badge.classList.add("s2xx");
+      setMsg("msgResult", `✓ ${data.message}`, "success");
+    } else if (data.statusCode >= 400 && data.statusCode < 500) {
+      badge.classList.add("s4xx");
+      setMsg("msgResult", `⚠ Error de cliente: HTTP ${data.statusCode}`, "warn");
+    } else {
+      badge.classList.add("s5xx");
+      setMsg("msgResult", `✗ Error del servidor: HTTP ${data.statusCode}`, "error");
+    }
+
+    document.getElementById("endpointUsedLabel").textContent = `Endpoint: ${data.endpointUsed}`;
+
+    // Respuesta formateada
+    const respEl = document.getElementById("responseBody");
+    respEl.classList.add("show");
+    try {
+      respEl.textContent = JSON.stringify(JSON.parse(data.responseBody), null, 2);
+    } catch {
+      respEl.textContent = data.responseBody || "(sin cuerpo de respuesta)";
+    }
+
+    setStep(5);
+
+  } catch (e) {
+    setMsg("msgResult", `<strong>Error de red:</strong> ${e.message}`, "error");
+  } finally {
+    spinBtn("btnSend", false);
+  }
+}
+
+// ── 4. Descargar JSON ─────────────────────────────────────
+
+async function descargarJson() {
+  if (!state.requestJson) {
+    setMsg("msgProcess", "<strong>Error:</strong> Primero procesa el XML.", "error");
+    return;
+  }
+  try {
+    const res = await fetch("/api/download", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requestJson: state.requestJson,
+        filename:    state.filename,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      setMsg("msgProcess", `<strong>Error al descargar:</strong> ${err.error}`, "error");
+      return;
+    }
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `mod_${state.filename || "request.json"}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    setMsg("msgProcess", `<strong>Error de red:</strong> ${e.message}`, "error");
+  }
+}
+
+// ── Inicializar al cargar la página ───────────────────────
+
+window.addEventListener("DOMContentLoaded", async () => {
+  await cargarTipos();    // cargar config de tipos desde /api/tipos
+  await actualizarLista(); // listar JSON files automáticamente con carpeta vacía
+});
+</script>
+
+</body>
+</html>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3e;
+      --accent:    #4f6ef7;
+      --accent-h:  #6b84ff;
+      --success:   #22c55e;
+      --error:     #ef4444;
+      --warning:   #f59e0b;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    10px;
+      --font:      'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Header ────────────────────────────────────────────── */
+    .app-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .app-header h1 {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+    .app-header h1 span { color: var(--accent); }
+    .app-header p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* ── Layout ────────────────────────────────────────────── */
+    .container { max-width: 980px; margin: 0 auto; }
+
+    /* ── Card / Section ────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* ── Form fields ───────────────────────────────────────── */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 600px) { .field-row { grid-template-columns: 1fr; } }
+
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="number"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.93rem;
+      padding: 9px 12px;
+      transition: border-color .2s;
+      outline: none;
+    }
+    input[type="text"]:focus, input[type="number"]:focus {
+      border-color: var(--accent);
+    }
+
+    /* ── Buttons ───────────────────────────────────────────── */
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    button {
+      padding: 9px 20px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary   { background: var(--accent);   color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+    .btn-success   { background: var(--success);  color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #16a34a; }
+    .btn-outline   { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .btn-danger    { background: var(--error); color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #dc2626; }
+
+    /* ── Textarea previews ─────────────────────────────────── */
+    .preview {
+      width: 100%;
+      min-height: 170px;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: #93c5fd;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.8rem;
+      padding: 12px;
+      outline: none;
+      line-height: 1.5;
+    }
+    .preview.tall { min-height: 220px; }
+    .preview.json-preview { color: #86efac; }
+
+    /* ── Status messages ───────────────────────────────────── */
+    .msg {
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-top: 12px;
+      display: none;
+    }
+    .msg.show { display: block; }
+    .msg.success { background: #14532d; border: 1px solid var(--success); color: #bbf7d0; }
+    .msg.error   { background: #450a0a; border: 1px solid var(--error);   color: #fecaca; }
+    .msg.info    { background: #1e3a5f; border: 1px solid var(--accent);  color: #bfdbfe; }
+
+    /* ── Status code badge ─────────────────────────────────── */
+    .status-badge {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .status-2xx { background: #14532d; color: #4ade80; border: 1px solid #22c55e; }
+    .status-4xx { background: #451a03; color: #fcd34d; border: 1px solid #f59e0b; }
+    .status-5xx { background: #450a0a; color: #fca5a5; border: 1px solid #ef4444; }
+    .status-hidden { display: none; }
+
+    /* ── Spinner ───────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin .6s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Progress steps ────────────────────────────────────── */
+    .steps {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .step-item .step-num {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 0.72rem;
+      flex-shrink: 0;
+    }
+    .step-item.done .step-num   { background: var(--success); color: #fff; }
+    .step-item.active .step-num { background: var(--accent);  color: #fff; }
+    .step-item.done   { color: var(--success); }
+    .step-item.active { color: var(--accent); }
+    .step-sep { color: var(--border); font-size: 1rem; }
+
+    /* ── Response body ─────────────────────────────────────── */
+    #responseBody {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-family: 'Cascadia Code', 'Consolas', monospace;
+      font-size: 0.78rem;
+      color: #e2e8f0;
+      white-space: pre-wrap;
+      word-break: break-all;
+      min-height: 80px;
+      max-height: 320px;
+      overflow-y: auto;
+      display: none;
+    }
+    #responseBody.show { display: block; }
+
+    /* ── Divider ───────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 4px 0 16px; }
+
+    /* ── Tooltip hint ──────────────────────────────────────── */
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="app-header">
+    <h1>Go2<span>Facto</span> · BillNumber Automation</h1>
+    <p>Modifica el BILLNUMBER en el XML codificado y envía el request al endpoint configurado</p>
+  </div>
+
+  <!-- Progress Steps -->
+  <div class="steps" id="progressSteps">
+    <div class="step-item active" id="step1">
+      <span class="step-num">1</span> Cargar archivo
+    </div>
+    <span class="step-sep">›</span>
+    <div class="step-item" id="step2">
+      <span class="step-num">2</span> Procesar XML
+    </div>
+    <span class="step-sep">›</span>
+    <div class="step-item" id="step3">
+      <span class="step-num">3</span> Enviar Request
+    </div>
+    <span class="step-sep">›</span>
+    <div class="step-item" id="step4">
+      <span class="step-num">4</span> Resultado
+    </div>
+  </div>
+
+  <!-- ── Sección 1: Configuración ───────────────────────── -->
+  <div class="card">
+    <div class="card-title"><span class="dot"></span> Configuración</div>
+
+    <div class="field-row">
+      <div>
+        <label for="newBillNo">Nuevo BillNo *</label>
+        <input type="number" id="newBillNo" placeholder="Ej: 15599" min="1" />
+        <p class="hint">Valor que reemplazará &lt;BILLNUMBER&gt; en el XML</p>
+      </div>
+      <div>
+        <label for="endpoint">Endpoint *</label>
+        <input type="text" id="endpoint" value="{{ default_endpoint }}" />
+        <p class="hint">URL del servicio al que se enviará el request</p>
+      </div>
+    </div>
+
+    <hr class="divider" />
+
+    <div class="btn-row">
+      <button class="btn-primary" id="btnLoad" onclick="cargarArchivo()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Cargar archivo
+      </button>
+      <button class="btn-success" id="btnProcess" onclick="procesarXml()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+        Procesar XML
+      </button>
+      <button class="btn-primary" id="btnSend" onclick="enviarRequest()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Enviar Request
+      </button>
+      <button class="btn-outline" id="btnDownload" onclick="descargarJson()" disabled>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Descargar JSON
+      </button>
+    </div>
+
+    <div id="msgConfig" class="msg"></div>
+  </div>
+
+  <!-- ── Sección 2: XML Original ──────────────────────────── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#f59e0b"></span> XML Original (decodificado de Base64)</div>
+    <textarea class="preview tall" id="xmlOriginal" readonly placeholder="Aquí aparecerá el XML decodificado del archivo request-postman.json..."></textarea>
+  </div>
+
+  <!-- ── Sección 3: XML Actualizado ───────────────────────── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#22c55e"></span> XML Actualizado (con nuevo BILLNUMBER)</div>
+    <textarea class="preview tall" id="xmlActualizado" readonly placeholder="Aquí aparecerá el XML con el BILLNUMBER reemplazado..."></textarea>
+    <div id="msgProcess" class="msg"></div>
+  </div>
+
+  <!-- ── Sección 4: Request Final ─────────────────────────── -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:#a78bfa"></span> Request Final (JSON con xml actualizado en Base64)</div>
+    <textarea class="preview tall json-preview" id="jsonFinal" readonly placeholder="Aquí aparecerá el JSON completo con el campo xml actualizado..."></textarea>
+  </div>
+
+  <!-- ── Sección 5: Resultado de Ejecución ────────────────── -->
+  <div class="card" id="sectionResult">
+    <div class="card-title"><span class="dot" style="background:#f43f5e"></span> Resultado de Ejecución</div>
+
+    <div id="resultContainer" style="display:none">
+      <div style="margin-bottom:8px">
+        <span class="status-badge status-hidden" id="statusBadge">— —</span>
+      </div>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:8px" id="endpointUsedLabel"></p>
+      <p style="font-size:0.82rem; color:var(--muted); margin-bottom:6px">Respuesta del servicio:</p>
+      <div id="responseBody"></div>
+    </div>
+
+    <div id="msgResult" class="msg"></div>
+    <div id="msgResultIdle" class="msg info show">
+      Completa los pasos anteriores y haz clic en <strong>Enviar Request</strong> para ver el resultado aquí.
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  // ── Estado de la app ──────────────────────────────────────
+  const state = {
+    loaded: false,
+    processed: false,
+    requestJson: null,   // objeto JSON modificado (para envío y descarga)
+  };
+
+  // ── Helpers visuales ─────────────────────────────────────
+
+  function setMsg(elementId, text, type) {
+    // type: 'success' | 'error' | 'info'
+    const el = document.getElementById(elementId);
+    el.className = `msg ${type} show`;
+    el.innerHTML = text;
+  }
+
+  function clearMsg(elementId) {
+    const el = document.getElementById(elementId);
+    el.className = 'msg';
+    el.textContent = '';
+  }
+
+  function setLoading(btnId, loading, originalLabel) {
+    const btn = document.getElementById(btnId);
+    if (loading) {
+      btn.disabled = true;
+      btn.dataset.original = btn.innerHTML;
+      btn.innerHTML = `<span class="spinner"></span> Procesando...`;
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.original) btn.innerHTML = btn.dataset.original;
+    }
+  }
+
+  function setStep(n) {
+    ['step1','step2','step3','step4'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.classList.remove('done','active');
+      if (i + 1 < n)  el.classList.add('done');
+      if (i + 1 === n) el.classList.add('active');
+    });
+  }
+
+  // ── 1. Cargar archivo ────────────────────────────────────
+
+  async function cargarArchivo() {
+    clearMsg('msgConfig');
+    setLoading('btnLoad', true);
+
+    try {
+      const res = await fetch('/api/load', { method: 'POST' });
+      const data = await res.json();
+
+      if (!data.ok) {
+        setMsg('msgConfig', `<strong>Error:</strong> ${data.error}`, 'error');
+        return;
+      }
+
+      // Poblar XML Original
+      document.getElementById('xmlOriginal').value = data.xmlDecoded;
+
+      // Prellenar BillNo con el valor actual
+      const billInput = document.getElementById('newBillNo');
+      if (!billInput.value) billInput.value = data.currentBillNumber;
+
+      state.loaded = true;
+      document.getElementById('btnProcess').disabled = false;
+      setMsg('msgConfig',
+        `✓ Archivo cargado. BILLNUMBER actual: <strong>${data.currentBillNumber}</strong>`,
+        'success');
+      setStep(2);
+
+    } catch (err) {
+      setMsg('msgConfig', `<strong>Error de red:</strong> ${err.message}`, 'error');
+    } finally {
+      setLoading('btnLoad', false);
+    }
+  }
+
+  // ── 2. Procesar XML ──────────────────────────────────────
+
+  async function procesarXml() {
+    clearMsg('msgProcess');
+
+    const newBillNo = document.getElementById('newBillNo').value.trim();
+    if (!newBillNo) {
+      setMsg('msgProcess', '<strong>Error:</strong> Ingresa un valor para el nuevo BillNo.', 'error');
+      return;
+    }
+
+    setLoading('btnProcess', true);
+
+    try {
+      const res = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newBillNo })
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        setMsg('msgProcess', `<strong>Error:</strong> ${data.error}`, 'error');
+        return;
+      }
+
+      // Poblar XML Actualizado y Request Final
+      document.getElementById('xmlActualizado').value = data.xmlUpdated;
+      document.getElementById('jsonFinal').value = JSON.stringify(data.requestJson, null, 2);
+
+      // Guardar en estado para envío y descarga
+      state.processed = true;
+      state.requestJson = data.requestJson;
+
+      document.getElementById('btnSend').disabled = false;
+      document.getElementById('btnDownload').disabled = false;
+
+      setMsg('msgProcess',
+        `✓ ${data.message}`,
+        'success');
+      setStep(3);
+
+    } catch (err) {
+      setMsg('msgProcess', `<strong>Error de red:</strong> ${err.message}`, 'error');
+    } finally {
+      setLoading('btnProcess', false);
+    }
+  }
+
+  // ── 3. Enviar Request ────────────────────────────────────
+
+  async function enviarRequest() {
+    clearMsg('msgResult');
+    const endpoint = document.getElementById('endpoint').value.trim();
+
+    if (!endpoint) {
+      setMsg('msgResult', '<strong>Error:</strong> El campo Endpoint es requerido.', 'error');
+      return;
+    }
+    if (!state.requestJson) {
+      setMsg('msgResult', '<strong>Error:</strong> Primero debes procesar el XML.', 'error');
+      return;
+    }
+
+    setLoading('btnSend', true);
+
+    // Ocultar mensaje idle
+    const msgIdle = document.getElementById('msgResultIdle');
+    msgIdle.classList.remove('show');
+
+    try {
+      const res = await fetch('/api/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint, requestJson: state.requestJson })
+      });
+      const data = await res.json();
+
+      // Mostrar contenedor de resultados
+      const container = document.getElementById('resultContainer');
+      container.style.display = 'block';
+
+      if (!data.ok) {
+        setMsg('msgResult', `<strong>Error:</strong> ${data.error}`, 'error');
+        return;
+      }
+
+      // Badge de status code
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = data.statusCode;
+      badge.className = 'status-badge';
+      if (data.statusCode >= 200 && data.statusCode < 300) {
+        badge.classList.add('status-2xx');
+        setMsg('msgResult', `✓ ${data.message}`, 'success');
+      } else if (data.statusCode >= 400 && data.statusCode < 500) {
+        badge.classList.add('status-4xx');
+        setMsg('msgResult', `⚠ El servidor respondió con error de cliente: ${data.statusCode}`, 'error');
+      } else {
+        badge.classList.add('status-5xx');
+        setMsg('msgResult', `✗ El servidor respondió con error: ${data.statusCode}`, 'error');
+      }
+
+      // Endpoint utilizado
+      document.getElementById('endpointUsedLabel').textContent = `Endpoint: ${data.endpointUsed}`;
+
+      // Intentar formatear respuesta JSON, si aplica
+      const respBody = document.getElementById('responseBody');
+      respBody.classList.add('show');
+      try {
+        const parsed = JSON.parse(data.responseBody);
+        respBody.textContent = JSON.stringify(parsed, null, 2);
+      } catch {
+        respBody.textContent = data.responseBody || '(sin cuerpo de respuesta)';
+      }
+
+      setStep(4);
+
+    } catch (err) {
+      setMsg('msgResult', `<strong>Error de red:</strong> ${err.message}`, 'error');
+    } finally {
+      setLoading('btnSend', false);
+    }
+  }
+
+  // ── 4. Descargar JSON ────────────────────────────────────
+
+  async function descargarJson() {
+    if (!state.requestJson) {
+      setMsg('msgProcess', '<strong>Error:</strong> Primero procesa el XML.', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestJson: state.requestJson })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        setMsg('msgProcess', `<strong>Error al descargar:</strong> ${err.error}`, 'error');
+        return;
+      }
+
+      // Crear enlace temporal para descarga
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'request-modificado.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+    } catch (err) {
+      setMsg('msgProcess', `<strong>Error de red:</strong> ${err.message}`, 'error');
+    }
+  }
+
+  // ── Cargar automáticamente al abrir la página ─────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    cargarArchivo();
+  });
+</script>
+</body>
+</html>

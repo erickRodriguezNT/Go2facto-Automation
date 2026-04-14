@@ -1,0 +1,1033 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Go2Facto QA Runner · Flujos</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0f1117;
+      --surf:    #1a1d27;
+      --surf2:   #1f2335;
+      --border:  #2a2d3e;
+      --acc:     #4f6ef7;
+      --acc-h:   #6b84ff;
+      --pass:    #22c55e;
+      --fail:    #ef4444;
+      --warn:    #f59e0b;
+      --info:    #38bdf8;
+      --txt:     #e2e8f0;
+      --muted:   #64748b;
+      --r:       10px;
+      --font:    'Segoe UI', system-ui, sans-serif;
+      --mono:    'Cascadia Code', Consolas, monospace;
+    }
+    body { background: var(--bg); color: var(--txt); font-family: var(--font); font-size: 14px; min-height: 100vh; }
+    h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 14px; }
+    h3 { font-size: 0.95rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+    p.hint { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+    label { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 4px; margin-top: 10px; }
+    input, select, textarea {
+      width: 100%; background: var(--bg); color: var(--txt);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; font-size: 0.88rem; font-family: var(--font);
+      transition: border-color .2s;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--acc); }
+    textarea { resize: vertical; min-height: 130px; font-family: var(--mono); font-size: 0.78rem; }
+    textarea[readonly] { color: var(--muted); }
+    button {
+      cursor: pointer; border: none; border-radius: 7px; padding: 9px 18px;
+      font-size: 0.88rem; font-weight: 600; transition: all .15s;
+    }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--acc); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--acc-h); }
+    .btn-success { background: var(--pass); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #16a34a; }
+    .btn-danger  { background: var(--fail); color: #fff; }
+    .btn-danger:hover:not(:disabled)  { background: #b91c1c; }
+    .btn-ghost   { background: var(--surf2); color: var(--txt); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { border-color: var(--acc); color: var(--acc); }
+
+    /* Layout */
+    .header { background: var(--surf); border-bottom: 1px solid var(--border); padding: 14px 26px; display: flex; align-items: center; gap: 14px; }
+    .header-logo { font-size: 1.25rem; font-weight: 700; color: var(--acc); }
+    .header-sub  { font-size: 0.78rem; color: var(--muted); flex: 1; }
+    .header-ts   { font-size: 0.76rem; color: var(--muted); }
+
+    .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; height: calc(100vh - 53px); }
+    .sidebar { background: var(--surf); border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 20px; }
+    .main { overflow-y: auto; padding: 22px 26px; display: flex; flex-direction: column; gap: 22px; }
+
+    .card { background: var(--surf2); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; }
+    .card-title { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; margin-bottom: 14px; }
+    .card-title .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Flujo selector */
+    .flujo-list { display: flex; flex-direction: column; gap: 6px; }
+    .flujo-btn {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 9px 12px; border-radius: 7px; cursor: pointer;
+      background: var(--surf); border: 1px solid var(--border);
+      font-size: 0.85rem; font-weight: 500; transition: all .15s; width: 100%; text-align: left; color: var(--txt);
+    }
+    .flujo-btn:hover { border-color: var(--acc); color: var(--acc); }
+    .flujo-btn.active { border-color: var(--acc); background: rgba(79,110,247,.12); color: var(--acc); }
+    .flujo-badge { font-size: 0.7rem; background: rgba(255,255,255,.07); border-radius: 4px; padding: 2px 7px; }
+    .flujo-all { border-color: var(--pass); color: var(--pass); }
+    .flujo-all:hover, .flujo-all.active { background: rgba(34,197,94,.12); border-color: var(--pass); color: var(--pass); }
+
+    /* Paso indicator */
+    .paso-indicator { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .paso-chip {
+      font-size: 0.75rem; padding: 3px 10px; border-radius: 20px;
+      background: var(--surf); border: 1px solid var(--border); color: var(--muted);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .paso-chip .num { font-weight: 700; color: var(--acc); }
+
+    /* Campos dinámicos */
+    .dynamic-fields { display: flex; flex-direction: column; gap: 8px; }
+    .field-group { background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .field-group h4 { font-size: 0.78rem; color: var(--acc); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .field-auto { position: relative; }
+    .field-auto input { padding-right: 90px; color: var(--muted); font-style: italic; }
+    .auto-badge { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 0.65rem; background: rgba(79,110,247,.2); color: var(--acc); padding: 2px 6px; border-radius: 4px; }
+
+    /* Stat cards */
+    .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .stat-card { background: var(--surf); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+    .stat-value { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+    .stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+    .stat-pass  .stat-value { color: var(--pass); }
+    .stat-fail  .stat-value { color: var(--fail); }
+    .stat-err   .stat-value { color: var(--warn); }
+    .stat-pct   .stat-value { color: var(--info); }
+
+    /* Results table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th { background: var(--surf); color: var(--muted); text-transform: uppercase; font-size: 0.7rem; letter-spacing: .05em; padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tr.result-row { cursor: pointer; transition: background .12s; }
+    tr.result-row:hover td { background: rgba(255,255,255,.03); }
+    tr.detail-row td { background: var(--surf); padding: 0; }
+    .detail-body { padding: 14px 16px; display: none; }
+    .detail-body.open { display: block; }
+    .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .detail-box h5 { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .detail-box pre { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px; font-size: 0.74rem; font-family: var(--mono); white-space: pre-wrap; word-break: break-all; color: var(--txt); max-height: 240px; overflow-y: auto; }
+    .toggle-icon { font-size: 0.8rem; color: var(--muted); }
+
+    /* Badges */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+    .badge-pass    { background: rgba(34,197,94,.18); color: var(--pass); }
+    .badge-fail    { background: rgba(239,68,68,.18);  color: var(--fail); }
+    .badge-error   { background: rgba(245,158,11,.18); color: var(--warn); }
+    .badge-omitido { background: rgba(100,116,139,.18); color: var(--muted); }
+
+    /* Loader */
+    .loader { display: none; align-items: center; gap: 10px; font-size: 0.85rem; color: var(--acc); }
+    .loader.active { display: flex; }
+    .spin { width: 16px; height: 16px; border: 2px solid rgba(79,110,247,.3); border-top-color: var(--acc); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Progress bar */
+    .progress-wrap {
+      display: none; flex-direction: column; gap: 5px; margin-top: 6px;
+    }
+    .progress-wrap.active { display: flex; }
+    .progress-track {
+      width: 100%; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; width: 0%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--acc), #818cf8);
+      transition: width 0.4s ease;
+    }
+    .progress-fill.done { background: var(--pass); }
+    .progress-label { font-size: 0.75rem; color: var(--muted); display: flex; justify-content: space-between; }
+    .progress-label span { color: var(--acc); font-weight: 600; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+    .toast-item { padding: 10px 16px; border-radius: 8px; font-size: 0.83rem; font-weight: 500; max-width: 360px; opacity: 0; transform: translateX(20px); transition: all .25s; pointer-events: auto; }
+    .toast-item.show { opacity: 1; transform: translateX(0); }
+    .toast-ok  { background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.4); color: var(--pass); }
+    .toast-err { background: rgba(239,68,68,.15);  border: 1px solid rgba(239,68,68,.4);  color: var(--fail); }
+    .toast-inf { background: rgba(79,110,247,.15); border: 1px solid rgba(79,110,247,.4);  color: var(--acc); }
+
+    /* XML views */
+    .xml-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) { .xml-row { grid-template-columns: 1fr; } }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+    .sep { height: 1px; background: var(--border); margin: 4px 0; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #run-log { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); white-space: pre-wrap; }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.9rem; }
+
+    /* Charts */
+    .charts-row { display: grid; grid-template-columns: 220px 1fr; gap: 14px; align-items: center; }
+    .chart-donut-wrap { position: relative; width: 180px; height: 180px; margin: 0 auto; }
+    .donut-center {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      text-align: center; pointer-events: none;
+    }
+    .donut-center .num  { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+    .donut-center .lbl  { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; }
+    .chart-bar-wrap { height: 160px; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; justify-content: center; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.75rem; color: var(--muted); }
+    .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* UUID badge */
+    .uuid-chip {
+      font-family: var(--mono); font-size: 0.68rem;
+      background: rgba(56,189,248,.12); color: var(--info);
+      border: 1px solid rgba(56,189,248,.25);
+      padding: 2px 6px; border-radius: 4px;
+      cursor: pointer; display: inline-block;
+      max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      vertical-align: middle;
+    }
+    .uuid-chip:hover { background: rgba(56,189,248,.22); }
+    .uuid-copied { color: var(--pass); border-color: var(--pass); background: rgba(34,197,94,.12); }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <span class="header-logo">Go2Facto</span>
+  <span class="header-sub">QA Runner · Flujos de Automatización</span>
+  <span class="header-ts" id="hdr-ts"></span>
+</header>
+
+<div class="layout">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="sidebar">
+
+    <!-- Configuración -->
+    <div>
+      <h3>Configuración</h3>
+      <label>Endpoint</label>
+      <input type="url" id="endpoint" placeholder="https://..." />
+
+      <label>Archivo de request (<code>rqst/</code>)</label>
+      <select id="file-select">
+        <option value="">— Cargando archivos… —</option>
+      </select>
+
+      <button class="btn-ghost" style="margin-top:10px;width:100%" onclick="cargarArchivo()">
+        Cargar archivo
+      </button>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Selección de flujo -->
+    <div>
+      <h3>Flujo</h3>
+      <div class="flujo-list" id="flujo-list"></div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Datos de entrada -->
+    <div>
+      <h3>Datos de entrada</h3>
+      <div id="dynamic-fields">
+        <p class="hint">Selecciona un flujo para ver los campos.</p>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <!-- Botones de acción -->
+    <div class="row">
+      <button class="btn-primary" style="flex:1" id="btn-run" onclick="ejecutar()" disabled>
+        ▶ Ejecutar
+      </button>
+      <button class="btn-danger" class="btn-ghost" onclick="limpiarHistorial()">🗑</button>
+    </div>
+    <div class="loader" id="loader"><div class="spin"></div><span id="loader-msg">Ejecutando…</span></div>
+    <div class="progress-wrap" id="progress-wrap">
+      <div class="progress-label"><span id="progress-step-lbl">Preparando…</span><span id="progress-pct">0%</span></div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+  </aside>
+
+  <!-- ══════════════ MAIN ══════════════ -->
+  <main class="main">
+
+    <!-- XML original / actualizado -->
+    <div class="xml-row">
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--muted)"></span> XML Original</div>
+        <textarea id="xml-orig" readonly placeholder="(vacío — carga un archivo)"></textarea>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="dot" style="background:var(--acc)"></span> XML Actualizado</div>
+        <textarea id="xml-new" readonly placeholder="(vacío — ejecuta un flujo)"></textarea>
+      </div>
+    </div>
+
+    <!-- Stats + Charts -->
+    <div>
+      <h2>Dashboard de resultados</h2>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="st-total">0</div>
+          <div class="stat-label">Total pasos</div>
+        </div>
+        <div class="stat-card stat-pass">
+          <div class="stat-value" id="st-pass">0</div>
+          <div class="stat-label">PASS</div>
+        </div>
+        <div class="stat-card stat-fail">
+          <div class="stat-value" id="st-fail">0</div>
+          <div class="stat-label">FAIL</div>
+        </div>
+        <div class="stat-card stat-err">
+          <div class="stat-value" id="st-err">0</div>
+          <div class="stat-label">ERROR / OMIT</div>
+        </div>
+        <div class="stat-card stat-pct">
+          <div class="stat-value" id="st-pct">—</div>
+          <div class="stat-label">% Éxito</div>
+        </div>
+      </div>
+
+      <!-- Gráficas -->
+      <div class="card" style="margin-top:14px">
+        <div class="charts-row">
+          <!-- Dona -->
+          <div>
+            <div class="chart-donut-wrap">
+              <canvas id="chart-donut"></canvas>
+              <div class="donut-center">
+                <div class="num" id="donut-pct">—</div>
+                <div class="lbl">Éxito</div>
+              </div>
+            </div>
+            <div class="chart-legend">
+              <div class="legend-item"><span class="legend-dot" style="background:var(--pass)"></span>PASS</div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--fail)"></span>FAIL</div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--warn)"></span>ERROR</div>
+              <div class="legend-item"><span class="legend-dot" style="background:var(--muted)"></span>OMITIDO</div>
+            </div>
+          </div>
+          <!-- Barras por flujo -->
+          <div class="chart-bar-wrap">
+            <canvas id="chart-bar"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="card" style="padding:0;overflow:visible">
+      <!-- Barra de acciones de la tabla -->
+      <div id="table-toolbar" style="display:none;padding:12px 16px;border-bottom:1px solid var(--border);display:none;align-items:center;justify-content:space-between;gap:10px">
+        <span style="font-size:0.82rem;color:var(--muted)" id="table-count"></span>
+        <button class="btn-success" onclick="descargarMatriz()" style="font-size:0.8rem;padding:7px 14px">⬇ Descargar Matriz de Pruebas (.csv)</button>
+      </div>
+      <div id="results-empty" class="empty-state">Ningún flujo ejecutado aún.</div>
+      <div class="table-wrap" id="results-table-wrap" style="display:none;overflow-y:auto;border-radius:0 0 var(--r) var(--r)">
+        <table id="results-table">
+          <thead style="position:sticky;top:0;z-index:2">
+            <tr>
+              <th></th>
+              <th>Flujo</th>
+              <th>Paso</th>
+              <th>Archivo</th>
+              <th>Campos</th>
+              <th>UUID Generado</th>
+              <th>HTTP</th>
+              <th>Resultado</th>
+              <th>Mensaje</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Log de ejecución -->
+    <div class="card" style="display:none" id="log-card">
+      <h3>Log de ejecución</h3>
+      <div id="run-log"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// Estado global
+// ══════════════════════════════════════════════════════════════
+let FLUJOS       = {};          // definición de flujos desde /api/flujos
+let flujoActivo  = null;        // clave del flujo seleccionado
+let archivoInfo  = null;        // {name, path, xmlDecoded, valoresActuales}
+let resultados   = [];          // todos los resultados de la última ejecución
+
+// ══════════════════════════════════════════════════════════════
+// Inicialización
+// ══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  tickClock();
+  setInterval(tickClock, 1000);
+  document.getElementById('endpoint').value =
+    '{{ default_endpoint }}';
+  await Promise.all([cargarFlujos(), cargarListaArchivos()]);
+});
+
+function tickClock() {
+  document.getElementById('hdr-ts').textContent =
+    new Date().toLocaleString('es-MX', { hour12: false });
+}
+
+// ══════════════════════════════════════════════════════════════
+// Flujos
+// ══════════════════════════════════════════════════════════════
+async function cargarFlujos() {
+  try {
+    const r = await fetch('/runner/api/flujos');
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    FLUJOS = d.flujos;
+    renderFlujoList();
+  } catch (e) {
+    toast('No se pudieron cargar los flujos: ' + e.message, 'err');
+  }
+}
+
+function renderFlujoList() {
+  const list = document.getElementById('flujo-list');
+  list.innerHTML = '';
+
+  // Flujos individuales
+  Object.entries(FLUJOS).forEach(([key, fl]) => {
+    const steps = fl.pasos.length;
+    const btn = document.createElement('button');
+    btn.className  = 'flujo-btn';
+    btn.dataset.key = key;
+    btn.innerHTML  =
+      `<span>${fl.label}</span>` +
+      `<span class="flujo-badge">${steps} paso${steps>1?'s':''}</span>`;
+    btn.onclick = () => seleccionarFlujo(key);
+    list.appendChild(btn);
+  });
+
+  // Botón "Correr todo"
+  const all = document.createElement('button');
+  all.className  = 'flujo-btn flujo-all';
+  all.dataset.key = 'todos';
+  all.innerHTML  = '<span>⚡ Correr todos los flujos</span>';
+  all.onclick = () => seleccionarFlujo('todos');
+  list.appendChild(all);
+}
+
+function seleccionarFlujo(key) {
+  flujoActivo = key;
+
+  // Actualizar botones activos
+  document.querySelectorAll('.flujo-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.key === key);
+  });
+
+  renderCampos(key);
+  document.getElementById('btn-run').disabled = false;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Campos dinámicos
+// ══════════════════════════════════════════════════════════════
+function renderCampos(flujoKey) {
+  const wrap = document.getElementById('dynamic-fields');
+
+  if (flujoKey === 'todos') {
+    wrap.innerHTML = '<p class="hint">El BILLNUMBER se incrementa automáticamente en cada paso. Ingresa el número base y el CONFIRMATIONNO para el Flujo 3.</p>';
+
+    // Grupo: BILLNUMBER base (aplica a todos los flujos, contador lo incrementa)
+    const g1 = document.createElement('div');
+    g1.className = 'field-group';
+    g1.innerHTML = '<h4>Todos los flujos</h4>';
+
+    const lBn = document.createElement('label');
+    lBn.textContent = 'BILLNUMBER base (se incrementará por cada paso)';
+    lBn.setAttribute('for', 'todos_BILLNUMBER');
+    g1.appendChild(lBn);
+
+    const iBn = document.createElement('input');
+    iBn.type        = 'text';
+    iBn.id          = 'todos_BILLNUMBER';
+    iBn.placeholder = 'Ej: 5567123';
+    iBn.dataset.campo = 'BILLNUMBER';
+    if (archivoInfo?.valoresActuales?.BILLNUMBER) iBn.value = archivoInfo.valoresActuales.BILLNUMBER;
+    g1.appendChild(iBn);
+
+    // Campo CONFIRMATIONNO (para Flujo 3)
+    const lCn = document.createElement('label');
+    lCn.textContent = 'CONFIRMATIONNO — para Flujo 3 (Anticipo + Aplicación Anticipo)';
+    lCn.setAttribute('for', 'todos_CONFIRMATIONNO');
+    g1.appendChild(lCn);
+
+    const iCn = document.createElement('input');
+    iCn.type        = 'text';
+    iCn.id          = 'todos_CONFIRMATIONNO';
+    iCn.placeholder = 'Ej: 654';
+    iCn.dataset.campo = 'CONFIRMATIONNO';
+    if (archivoInfo?.valoresActuales?.CONFIRMATIONNO) iCn.value = archivoInfo.valoresActuales.CONFIRMATIONNO;
+    g1.appendChild(iCn);
+
+    wrap.appendChild(g1);
+    return;
+  }
+
+  wrap.innerHTML = '';
+  renderCamposFlujo(flujoKey, wrap, false);
+}
+
+function renderCamposFlujo(flujoKey, wrap, extraLabel) {
+  const fl = FLUJOS[flujoKey];
+  if (!fl) return;
+
+  fl.pasos.forEach((paso, pi) => {
+    const manual = paso.campos.filter(c => !c.auto);
+    if (manual.length === 0) return;   // no mostrar grupo si todos son auto
+
+    const group = document.createElement('div');
+    group.className = 'field-group';
+    group.innerHTML = `<h4>Paso ${pi+1} · ${paso.nombre}</h4>`;
+
+    manual.forEach(campo => {
+      const label = document.createElement('label');
+      label.textContent = campo.label;
+      label.setAttribute('for', `f_${flujoKey}_${pi}_${campo.id}`);
+      group.appendChild(label);
+
+      const input = document.createElement('input');
+      input.type        = 'text';
+      input.id          = `f_${flujoKey}_${pi}_${campo.id}`;
+      input.placeholder = campo.placeholder || '';
+      input.dataset.paso  = pi;
+      input.dataset.campo = campo.id;
+      input.dataset.flujo = flujoKey;
+
+      // Pre-llenar si hay valor actual del archivo
+      if (archivoInfo?.valoresActuales?.[campo.id]) {
+        input.value = archivoInfo.valoresActuales[campo.id];
+        input.placeholder = archivoInfo.valoresActuales[campo.id];
+      }
+
+      group.appendChild(input);
+    });
+
+    wrap.appendChild(group);
+  });
+
+  if (!wrap.querySelector('.field-group')) {
+    wrap.innerHTML += '<p class="hint">Este flujo no requiere datos adicionales.</p>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Archivos
+// ══════════════════════════════════════════════════════════════
+async function cargarListaArchivos() {
+  try {
+    const r = await fetch('/runner/api/files');
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+
+    const sel = document.getElementById('file-select');
+    sel.innerHTML = d.archivos.length
+      ? d.archivos.map(f =>
+          `<option value="${esc(f.path)}">${esc(f.name)} (${formatBytes(f.size)})</option>`
+        ).join('')
+      : '<option value="">Sin archivos en rqst/</option>';
+
+    toast(`${d.total} archivo(s) encontrado(s) en rqst/`, 'inf');
+  } catch(e) {
+    toast('Error al listar archivos: ' + e.message, 'err');
+  }
+}
+
+async function cargarArchivo() {
+  const sel = document.getElementById('file-select');
+  const fp  = sel.value;
+  if (!fp) return toast('Selecciona un archivo primero.', 'err');
+
+  try {
+    const r = await fetch('/runner/api/load', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ filePath: fp }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+
+    archivoInfo = d;
+    document.getElementById('xml-orig').value = d.xmlDecoded;
+    document.getElementById('xml-new').value  = '';
+
+    // Re-renderizar campos con valores actuales
+    if (flujoActivo) renderCampos(flujoActivo);
+
+    toast(`Archivo cargado: ${d.fileName}`, 'ok');
+  } catch(e) {
+    toast('Error al cargar: ' + e.message, 'err');
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Ejecución
+// ══════════════════════════════════════════════════════════════
+async function ejecutar() {
+  if (!flujoActivo) return toast('Selecciona un flujo primero.', 'err');
+
+  const fp = document.getElementById('file-select').value;
+  if (!fp) return toast('Selecciona un archivo primero.', 'err');
+
+  const endpoint = document.getElementById('endpoint').value.trim();
+  if (!endpoint) return toast('Ingresa el endpoint primero.', 'err');
+
+  // Recolectar valores
+  const valoresPorPaso = flujoActivo === 'todos'
+    ? construirValoresTodos()
+    : construirValoresPorPaso(flujoActivo);
+
+  // Calcular total de pasos para la barra de progreso
+  const totalPasos = flujoActivo === 'todos'
+    ? Object.values(FLUJOS).reduce((acc, f) => acc + f.pasos.length, 0)
+    : (FLUJOS[flujoActivo]?.pasos.length ?? 1);
+
+  setLoading(true, 'Ejecutando flujo…');
+  startProgress(totalPasos);
+
+  try {
+    const r = await fetch('/runner/api/run', {
+      method:  'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        flujoKey:       flujoActivo,
+        filePath:       fp,
+        valoresPorPaso: valoresPorPaso,
+        endpoint:       endpoint,
+      }),
+    });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+
+    resultados = d.resultados;
+    renderResults(d.resultados, d.resumen);
+
+    // Mostrar XML del último paso con xmlActualizado
+    const conXml = d.resultados.filter(r => r.xmlActualizado).pop();
+    if (conXml) document.getElementById('xml-new').value = conXml.xmlActualizado;
+
+    const ok = d.resumen.pass === d.resumen.total;
+    finishProgress(ok);
+    toast(
+      `Run ${d.runId}: ${d.resumen.pass}/${d.resumen.total} PASS` +
+      (d.resumen.fail ? ` · ${d.resumen.fail} FAIL` : '') +
+      (d.resumen.error ? ` · ${d.resumen.error} ERROR` : ''),
+      ok ? 'ok' : 'err'
+    );
+    incrementarBillNumbers();
+  } catch(e) {
+    finishProgress(false);
+    toast('Error en ejecución: ' + e.message, 'err');
+  } finally {
+    setLoading(false);
+  }
+}
+
+// Incrementa en +1 todos los campos BILLNUMBER visibles en el formulario
+function incrementarBillNumbers() {
+  // Campos normales por flujo (data-campo="BILLNUMBER")
+  // y el campo especial del modo "todos" (#todos_BILLNUMBER)
+  const selectores = [
+    ...document.querySelectorAll('input[data-campo="BILLNUMBER"]'),
+    document.getElementById('todos_BILLNUMBER'),
+  ].filter(Boolean);
+
+  selectores.forEach(el => {
+    const val = parseInt(el.value.trim(), 10);
+    if (!isNaN(val)) {
+      el.value = val + 1;
+      // Efecto visual breve para indicar el cambio
+      el.style.borderColor = 'var(--pass)';
+      setTimeout(() => { el.style.borderColor = ''; }, 800);
+    }
+  });
+}
+
+function construirValoresTodos() {
+  // Para "todos" enviamos UN solo objeto con BILLNUMBER base y CONFIRMATIONNO.
+  // El backend asigna el contador a cada paso.
+  const bn = document.getElementById('todos_BILLNUMBER')?.value.trim() || '';
+  const cn = document.getElementById('todos_CONFIRMATIONNO')?.value.trim() || '';
+  const vals = {};
+  if (bn) vals['BILLNUMBER'] = bn;
+  if (cn) vals['CONFIRMATIONNO'] = cn;
+  return [vals];
+}
+
+function construirValoresPorPaso(flujoKey) {
+  const fl = FLUJOS[flujoKey];
+  if (!fl) return [];
+
+  return fl.pasos.map((paso, pi) => {
+    const vals = {};
+    paso.campos.filter(c => !c.auto).forEach(c => {
+      const el = document.getElementById(`f_${flujoKey}_${pi}_${c.id}`);
+      if (el) vals[c.id] = el.value.trim();
+    });
+    return vals;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+// Charts
+// ══════════════════════════════════════════════════════════════
+let _chartDonut = null;
+let _chartBar   = null;
+
+function initCharts() {
+  const donutCtx = document.getElementById('chart-donut').getContext('2d');
+  _chartDonut = new Chart(donutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['PASS', 'FAIL', 'ERROR', 'OMITIDO'],
+      datasets: [{
+        data: [0, 0, 0, 0],
+        backgroundColor: ['#22c55e', '#ef4444', '#f59e0b', '#64748b'],
+        borderWidth: 2,
+        borderColor: '#1f2335',
+        hoverOffset: 6,
+      }]
+    },
+    options: {
+      cutout: '72%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx => ` ${ctx.label}: ${ctx.parsed}`
+      }}},
+      animation: { animateRotate: true, duration: 500 },
+    }
+  });
+
+  const barCtx = document.getElementById('chart-bar').getContext('2d');
+  _chartBar = new Chart(barCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [
+      { label: 'PASS',    data: [], backgroundColor: '#22c55e' },
+      { label: 'FAIL',    data: [], backgroundColor: '#ef4444' },
+      { label: 'ERROR',   data: [], backgroundColor: '#f59e0b' },
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { stacked: true, grid: { color: '#2a2d3e' }, ticks: { color: '#64748b', font: { size: 10 } } },
+        y: { stacked: true, grid: { color: '#2a2d3e' }, ticks: { color: '#64748b', stepSize: 1, beginAtZero: true } },
+      },
+      plugins: { legend: { labels: { color: '#64748b', font: { size: 10 } } },
+                 tooltip: { mode: 'index', intersect: false } },
+      animation: { duration: 400 },
+    }
+  });
+}
+
+function updateCharts(res, resumen) {
+  // Dona
+  const pass = resumen.pass, fail = resumen.fail,
+        err  = resumen.error, omit = resumen.omitido;
+  _chartDonut.data.datasets[0].data = [pass, fail, err, omit];
+  _chartDonut.update();
+  document.getElementById('donut-pct').textContent = resumen.pct_exito + '%';
+
+  // Barras por flujo (agrupar)
+  const flujoMap = {};
+  res.forEach(r => {
+    const lbl = r.flujoLabel || r.flujo || '?';
+    if (!flujoMap[lbl]) flujoMap[lbl] = { PASS: 0, FAIL: 0, ERROR: 0 };
+    if (r.resultado === 'PASS')                         flujoMap[lbl].PASS++;
+    else if (r.resultado === 'FAIL')                    flujoMap[lbl].FAIL++;
+    else if (r.resultado === 'ERROR' || r.resultado === 'OMITIDO') flujoMap[lbl].ERROR++;
+  });
+  const labels = Object.keys(flujoMap);
+  _chartBar.data.labels = labels.map(l => l.replace('Flujo ', 'F').replace(' · ', ' '));
+  _chartBar.data.datasets[0].data = labels.map(l => flujoMap[l].PASS);
+  _chartBar.data.datasets[1].data = labels.map(l => flujoMap[l].FAIL);
+  _chartBar.data.datasets[2].data = labels.map(l => flujoMap[l].ERROR);
+  _chartBar.update();
+}
+
+// ══════════════════════════════════════════════════════════════
+// Renderizado de resultados
+// ══════════════════════════════════════════════════════════════
+function renderResults(res, resumen) {
+  // Stats numéricas
+  document.getElementById('st-total').textContent = resumen.total;
+  document.getElementById('st-pass').textContent  = resumen.pass;
+  document.getElementById('st-fail').textContent  = resumen.fail;
+  document.getElementById('st-err').textContent   = resumen.error + resumen.omitido;
+  document.getElementById('st-pct').textContent   = resumen.pct_exito + '%';
+
+  // Inicializar charts si aún no existen
+  if (!_chartDonut) initCharts();
+  updateCharts(res, resumen);
+
+  const tbody = document.getElementById('results-tbody');
+  tbody.innerHTML = '';
+
+  res.forEach((r, idx) => {
+    const badgeCls = {
+      PASS: 'badge-pass', FAIL: 'badge-fail', ERROR: 'badge-error', OMITIDO: 'badge-omitido'
+    }[r.resultado] || 'badge-omitido';
+
+    const camposStr = (r.cambios || []).map(c => `${c.campo}=${c.valor}`).join(', ') || '—';
+
+    // UUID
+    const uuidHtml = r.uuidGenerado
+      ? `<span class="uuid-chip" title="${esc(r.uuidGenerado)}" onclick="copiarUuid(this,'${esc(r.uuidGenerado)}')">${esc(r.uuidGenerado)}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.className = 'result-row';
+    tr.dataset.idx = idx;
+    tr.onclick = () => toggleDetail(idx);
+    tr.innerHTML = `
+      <td class="toggle-icon">▶</td>
+      <td>${esc(r.flujoLabel || r.flujo || '—')}</td>
+      <td>${esc(r.paso || r.tipo || '—')}</td>
+      <td>${esc(r.file || '—')}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(camposStr)}">${esc(camposStr)}</td>
+      <td>${uuidHtml}</td>
+      <td>${r.statusCode != null ? httpBadge(r.statusCode) : '—'}</td>
+      <td><span class="badge ${badgeCls}">${r.resultado}</span></td>
+      <td style="max-width:220px;color:var(--muted);font-size:.78rem">${esc(r.mensaje || '—')}</td>
+      <td style="white-space:nowrap;color:var(--muted)">${r.timestamp || '—'}</td>`;
+    tbody.appendChild(tr);
+
+    // Fila detalle (oculta por defecto)
+    const detail = document.createElement('tr');
+    detail.className = 'detail-row';
+    detail.dataset.for = idx;
+    detail.innerHTML = `<td colspan="10"><div class="detail-body" id="detail-${idx}">
+      <div class="detail-grid">
+        ${r.uuidGenerado ? detailBox('UUID Generado', r.uuidGenerado) : ''}
+        ${r.responseBody  ? detailBox('Response Body (servidor)',   r.responseBody)  : ''}
+        ${r.requestJson   ? detailBox('Request JSON enviado', JSON.stringify(r.requestJson, null, 2)) : ''}
+        ${r.xmlOriginal   ? detailBox('XML Original',    r.xmlOriginal)   : ''}
+        ${r.xmlActualizado ? detailBox('XML Actualizado', r.xmlActualizado) : ''}
+        ${r.cambios?.length ? detailBox('Cambios', JSON.stringify(r.cambios, null, 2)) : ''}
+      </div>
+    </div></td>`;
+    tbody.appendChild(detail);
+  });
+
+  document.getElementById('results-empty').style.display      = 'none';
+  document.getElementById('results-table-wrap').style.display = '';
+  // Mostrar barra de acciones
+  const toolbar = document.getElementById('table-toolbar');
+  toolbar.style.display = 'flex';
+  document.getElementById('table-count').textContent = `${res.length} caso(s) de prueba`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Descarga Matriz de Pruebas (CSV)
+// ══════════════════════════════════════════════════════════════
+function descargarMatriz() {
+  if (!resultados.length) return toast('No hay resultados para exportar.', 'err');
+
+  const COLS = ['Flujo', 'Paso', 'Archivo', 'Campos Modificados', 'UUID Generado', 'HTTP', 'Resultado', 'Mensaje', 'Timestamp'];
+
+  const csvEscape = v => {
+    const s = v == null ? '' : String(v);
+    // Si contiene coma, comilla o salto de línea, rodear con comillas y escapar comillas internas
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? '"' + s.replace(/"/g, '""') + '"'
+      : s;
+  };
+
+  const rows = [COLS.map(csvEscape).join(',')];
+
+  resultados.forEach(r => {
+    const campos = (r.cambios || []).map(c => `${c.campo}=${c.valor}`).join(' | ');
+    rows.push([
+      r.flujoLabel || r.flujo || '',
+      r.paso       || r.tipo  || '',
+      r.file       || '',
+      campos,
+      r.uuidGenerado || '',
+      r.statusCode   != null ? r.statusCode : '',
+      r.resultado    || '',
+      r.mensaje      || '',
+      r.timestamp    || '',
+    ].map(csvEscape).join(','));
+  });
+
+  const bom  = '\uFEFF';  // BOM para que Excel abra correctamente con acentos
+  const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const ts   = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `matriz-pruebas-${ts}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Matriz descargada correctamente.', 'ok');
+}
+
+function copiarUuid(el, uuid) {
+  navigator.clipboard.writeText(uuid).then(() => {
+    el.classList.add('uuid-copied');
+    el.textContent = '✓ Copiado';
+    setTimeout(() => {
+      el.classList.remove('uuid-copied');
+      el.textContent = uuid;
+    }, 1500);
+  }).catch(() => toast('No se pudo copiar.', 'err'));
+}
+
+function detailBox(title, content) {
+  return `<div class="detail-box"><h5>${esc(title)}</h5><pre>${esc(content)}</pre></div>`;
+}
+
+function toggleDetail(idx) {
+  const body = document.getElementById(`detail-${idx}`);
+  const tr   = document.querySelector(`tr.result-row[data-idx="${idx}"]`);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (tr) tr.querySelector('.toggle-icon').textContent = open ? '▼' : '▶';
+}
+
+function httpBadge(code) {
+  const cls = code >= 200 && code < 300 ? 'badge-pass' : 'badge-fail';
+  return `<span class="badge ${cls}">${code}</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════
+// Historial & utilidades
+// ══════════════════════════════════════════════════════════════
+function limpiarHistorial() {
+  if (!confirm('¿Limpiar la tabla de resultados?')) return;
+  resultados = [];
+  document.getElementById('results-tbody').innerHTML = '';
+  document.getElementById('st-total').textContent = 0;
+  document.getElementById('st-pass').textContent  = 0;
+  document.getElementById('st-fail').textContent  = 0;
+  document.getElementById('st-err').textContent   = 0;
+  document.getElementById('st-pct').textContent   = '—';
+  document.getElementById('results-empty').style.display      = '';
+  document.getElementById('results-table-wrap').style.display = 'none';
+  document.getElementById('table-toolbar').style.display      = 'none';
+  document.getElementById('xml-new').value  = '';
+  toast('Historial limpiado.', 'inf');
+}
+
+// ── Progress bar helpers ──────────────────────────────────────
+let _progressTimer = null;
+
+function startProgress(totalSteps) {
+  clearInterval(_progressTimer);
+  const wrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const pct  = document.getElementById('progress-pct');
+  const lbl  = document.getElementById('progress-step-lbl');
+  fill.classList.remove('done');
+  fill.style.width = '0%';
+  pct.textContent  = '0%';
+  lbl.textContent  = 'Enviando requests…';
+  wrap.classList.add('active');
+
+  // Simula progreso: avanza hasta 90% en intervalos proporcionales al nº de pasos
+  const target  = 90;
+  const stepsPx = totalSteps > 1 ? totalSteps * 2 : 3;
+  const interval = Math.max(300, Math.round(1800 / stepsPx));
+  let current = 0;
+  const increment = target / stepsPx;
+  _progressTimer = setInterval(() => {
+    current = Math.min(current + increment, target);
+    const rounded = Math.round(current);
+    fill.style.width = rounded + '%';
+    pct.textContent  = rounded + '%';
+    if (current >= target) clearInterval(_progressTimer);
+  }, interval);
+}
+
+function finishProgress(success) {
+  clearInterval(_progressTimer);
+  const wrap = document.getElementById('progress-wrap');
+  const fill = document.getElementById('progress-fill');
+  const pct  = document.getElementById('progress-pct');
+  const lbl  = document.getElementById('progress-step-lbl');
+  fill.style.width = '100%';
+  pct.textContent  = '100%';
+  if (success) {
+    fill.classList.add('done');
+    lbl.textContent = 'Completado';
+  } else {
+    fill.style.background = 'var(--fail)';
+    lbl.textContent = 'Finalizado con errores';
+  }
+  setTimeout(() => {
+    wrap.classList.remove('active');
+    fill.style.width = '0%';
+    fill.style.background = '';
+    fill.classList.remove('done');
+  }, 1800);
+}
+// ─────────────────────────────────────────────────────────────
+
+function setLoading(on, msg = '') {
+  document.getElementById('loader').classList.toggle('active', on);
+  document.getElementById('loader-msg').textContent = msg;
+  document.getElementById('btn-run').disabled = on;
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(1) + ' MB';
+}
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Toast
+function toast(msg, type = 'inf', duration = 4000) {
+  const container = document.getElementById('toast');
+  const el = document.createElement('div');
+  el.className = `toast-item toast-${type}`;
+  el.textContent = msg;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+</script>
+</body>
+</html>
