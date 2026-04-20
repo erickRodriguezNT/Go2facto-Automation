@@ -136,21 +136,65 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Progress bar */
-    .progress-wrap {
-      display: none; flex-direction: column; gap: 5px; margin-top: 6px;
+    /* ── Progress bar (main content) ── */
+    .progress-panel {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px 20px;
+      margin-bottom: 4px;
     }
-    .progress-wrap.active { display: flex; }
+    .progress-panel.active { display: flex; }
+    .progress-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .progress-top-left { display: flex; align-items: center; gap: 10px; }
+    .progress-label-main { font-size: 0.88rem; font-weight: 600; color: var(--txt); }
+    .progress-sub { font-size: 0.78rem; color: var(--muted); }
+    .progress-pct-main { font-size: 1.1rem; font-weight: 700; color: var(--acc); min-width: 44px; text-align: right; }
+    .progress-time { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
     .progress-track {
-      width: 100%; height: 6px; background: var(--border); border-radius: 99px; overflow: hidden;
+      width: 100%; height: 8px; background: var(--border); border-radius: 99px; overflow: hidden;
     }
     .progress-fill {
       height: 100%; width: 0%; border-radius: 99px;
       background: linear-gradient(90deg, var(--acc), #818cf8);
-      transition: width 0.4s ease;
+      transition: width 0.15s linear;
     }
-    .progress-fill.done { background: var(--pass); }
-    .progress-label { font-size: 0.75rem; color: var(--muted); display: flex; justify-content: space-between; }
-    .progress-label span { color: var(--acc); font-weight: 600; }
+    .progress-fill.done { background: linear-gradient(90deg, var(--pass), #4ade80); transition: width 0.3s ease; }
+    .progress-fill.error { background: var(--fail); transition: width 0.3s ease; }
+    .progress-steps-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .progress-step-dot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.74rem;
+      color: var(--muted);
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .progress-step-dot .sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+    .progress-step-dot.running { color: var(--acc); border-color: rgba(79,110,247,.4); }
+    .progress-step-dot.running .sdot { background: var(--acc); box-shadow: 0 0 6px var(--acc); animation: pulse-dot .8s ease-in-out infinite; }
+    .progress-step-dot.done { color: var(--pass); border-color: rgba(34,197,94,.3); }
+    .progress-step-dot.done .sdot { background: var(--pass); }
+    .progress-step-dot.fail { color: var(--fail); border-color: rgba(239,68,68,.3); }
+    .progress-step-dot.fail .sdot { background: var(--fail); }
+    @keyframes pulse-dot { 0%,100%{ opacity:1; } 50%{ opacity:.3; } }
 
     /* Toast */
     #toast { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
@@ -164,8 +208,128 @@
     .xml-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 900px) { .xml-row { grid-template-columns: 1fr; } }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    /* ── Light theme ── */
+    [data-theme="light"] {
+      --bg:    #f0f2f8;
+      --surf:  #ffffff;
+      --surf2: #f5f7fc;
+      --border:#dde1f0;
+      --txt:   #1e2235;
+      --muted: #8896b0;
+    }
+    [data-theme="light"] input,
+    [data-theme="light"] select,
+    [data-theme="light"] textarea {
+      background: var(--surf2);
+      color: var(--txt);
+      border-color: var(--border);
+    }
+    [data-theme="light"] .btn-ghost {
+      background: var(--surf);
+      color: var(--txt);
+    }
+    [data-theme="light"] .flujo-btn { background: var(--surf); }
+    [data-theme="light"] .field-group { background: var(--surf); }
+    [data-theme="light"] .stat-card { background: var(--surf); }
+    [data-theme="light"] .detail-box pre,
+    [data-theme="light"] .rep-pre { background: #0f172a !important; color: #e2e8f0 !important; }
+    [data-theme="light"] #run-log { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; }
+
+    /* ── Theme toggle button ── */
+    .theme-toggle {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      color: var(--txt);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all .2s;
+      white-space: nowrap;
+    }
+    .theme-toggle:hover { border-color: var(--acc); color: var(--acc); }
+
+    /* ── Tab bar ── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      gap: 0;
+      margin-bottom: 18px;
+      background: var(--bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 0 4px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+      border-radius: 0;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--txt); }
+    .tab-btn.active { color: var(--acc); border-bottom-color: var(--acc); }
+
+    /* ── Reportes section ── */
+    .rep-summary {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 700px) { .rep-summary { grid-template-columns: repeat(2,1fr); } }
+    .rep-sc {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .rep-sc .val { font-size: 1.8rem; font-weight: 700; line-height: 1; }
+    .rep-sc .lbl { font-size: 0.7rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+    .rep-sc-p .val { color: var(--pass); }
+    .rep-sc-f .val { color: var(--fail); }
+    .rep-sc-e .val { color: var(--warn); }
+    .rep-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .rep-pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--mono);
+      font-size: 0.74rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+      color: var(--txt);
+    }
+    .rep-step-card {
+      background: var(--surf2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+    .rep-step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
     ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
@@ -210,6 +374,7 @@
   <span class="header-logo">Go2Facto</span>
   <span class="header-sub">QA Runner · Flujos de Automatización</span>
   <span class="header-ts" id="hdr-ts"></span>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">☀️ Claro</button>
 </header>
 
 <div class="layout">
@@ -253,6 +418,15 @@
 
     <div class="sep"></div>
 
+    <!-- Nombre de la prueba -->
+    <div>
+      <h3>Nombre de la prueba</h3>
+      <input type="text" id="test-name" placeholder="Ej: Flujo anticipo hotel X — regresion" maxlength="120" />
+      <p class="hint">Identificador libre para el reporte.</p>
+    </div>
+
+    <div class="sep"></div>
+
     <!-- Botones de acción -->
     <div class="row">
       <button class="btn-primary" style="flex:1" id="btn-run" onclick="ejecutar()" disabled>
@@ -261,14 +435,40 @@
       <button class="btn-danger" class="btn-ghost" onclick="limpiarHistorial()">🗑</button>
     </div>
     <div class="loader" id="loader"><div class="spin"></div><span id="loader-msg">Ejecutando…</span></div>
-    <div class="progress-wrap" id="progress-wrap">
-      <div class="progress-label"><span id="progress-step-lbl">Preparando…</span><span id="progress-pct">0%</span></div>
-      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-    </div>
   </aside>
 
   <!-- ══════════════ MAIN ══════════════ -->
   <main class="main">
+
+    <!-- ── Tab bar ── -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="resultados" onclick="switchTab('resultados')">📊 Resultados</button>
+      <button class="tab-btn" data-tab="reportes" onclick="switchTab('reportes')">📋 Reportes</button>
+    </nav>
+
+    <!-- ══════════════════════════════════════════
+         TAB: RESULTADOS (contenido actual)
+    ══════════════════════════════════════════ -->
+    <div id="tab-resultados">
+
+    <!-- ── Barra de progreso de ejecución ── -->
+    <div class="progress-panel" id="progress-panel">
+      <div class="progress-top">
+        <div class="progress-top-left">
+          <div class="spin" id="progress-spin"></div>
+          <div>
+            <div class="progress-label-main" id="progress-lbl-main">Preparando ejecución…</div>
+            <div class="progress-sub" id="progress-sub">Iniciando flujo</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <span class="progress-time" id="progress-time">0s / ~…</span>
+          <span class="progress-pct-main" id="progress-pct">0%</span>
+        </div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="progress-steps-row" id="progress-steps-row"></div>
+    </div>
 
     <!-- XML original / actualizado -->
     <div class="xml-row">
@@ -370,6 +570,117 @@
       <div id="run-log"></div>
     </div>
 
+    </div><!-- /tab-resultados -->
+
+    <!-- ══════════════════════════════════════════
+         TAB: REPORTES
+    ══════════════════════════════════════════ -->
+    <div id="tab-reportes" style="display:none">
+
+      <!-- Encabezado -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <h2 style="font-size:1.1rem">Módulo de Reportes</h2>
+        <button class="btn-ghost" onclick="cargarReportes()" style="font-size:0.8rem;padding:7px 14px">↻ Actualizar lista</button>
+      </div>
+
+      <!-- SECCIÓN RESUMEN -->
+      <div class="rep-summary">
+        <div class="rep-sc">
+          <div class="val" id="rep-total">0</div>
+          <div class="lbl">Ejecuciones</div>
+        </div>
+        <div class="rep-sc rep-sc-p">
+          <div class="val" id="rep-pass">0</div>
+          <div class="lbl">Pasos PASS</div>
+        </div>
+        <div class="rep-sc rep-sc-f">
+          <div class="val" id="rep-fail">0</div>
+          <div class="lbl">Pasos FAIL</div>
+        </div>
+        <div class="rep-sc rep-sc-e">
+          <div class="val" id="rep-err">0</div>
+          <div class="lbl">Pasos ERROR</div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN ACCIONES -->
+      <div class="rep-actions">
+        <button class="btn-success" onclick="descargarMatrizTodas()" style="font-size:0.82rem;padding:8px 16px">
+          ⬇ Descargar Matriz Completa (.csv)
+        </button>
+        <button class="btn-danger" onclick="borrarTodosReportes()" style="font-size:0.82rem;padding:8px 14px">
+          🗑 Borrar todos los reportes
+        </button>
+      </div>
+
+      <!-- SECCIÓN HISTORIAL -->
+      <div class="card" style="padding:0;overflow:visible">
+        <div id="rep-empty" class="empty-state">
+          No hay reportes guardados aún.<br>
+          <span style="font-size:0.8rem">Ejecuta un flujo para generar el primer reporte.</span>
+        </div>
+        <div id="rep-table-wrap" style="display:none">
+          <div class="table-wrap">
+            <table id="rep-table">
+              <thead style="position:sticky;top:0;z-index:2">
+                <tr>
+                  <th></th>
+                  <th>Run ID</th>
+                  <th>Nombre de prueba</th>
+                  <th>Fecha</th>
+                  <th>Flujo</th>
+                  <th>Archivo</th>
+                  <th style="text-align:center">Total</th>
+                  <th style="text-align:center">PASS</th>
+                  <th style="text-align:center">FAIL</th>
+                  <th style="text-align:center">ERROR</th>
+                  <th style="text-align:center">% Éxito</th>
+                  <th>Descargar</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="rep-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN DETALLE de ejecución seleccionada -->
+      <div id="rep-detail-section" style="display:none;margin-top:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <h2 style="font-size:1rem">
+            Detalle · Run <code id="rep-detail-id" style="color:var(--acc);font-size:0.95rem"></code>
+          </h2>
+          <button class="btn-ghost" onclick="cerrarDetalle()" style="font-size:0.8rem;padding:6px 12px">✕ Cerrar</button>
+        </div>
+        <!-- Botones de descarga del run seleccionado -->
+        <div class="rep-actions" id="rep-detail-actions"></div>
+        <!-- Tabla de pasos -->
+        <div class="card" style="padding:0;overflow:visible">
+          <div class="table-wrap">
+            <table>
+              <thead style="position:sticky;top:0;z-index:2">
+                <tr>
+                  <th></th>
+                  <th>Flujo</th>
+                  <th>Paso</th>
+                  <th>Archivo</th>
+                  <th>Campos</th>
+                  <th>UUID</th>
+                  <th>HTTP</th>
+                  <th>Resultado</th>
+                  <th>Mensaje</th>
+                  <th>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody id="rep-detail-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /tab-reportes -->
+
   </main>
 </div>
 
@@ -389,6 +700,7 @@ let resultados   = [];          // todos los resultados de la última ejecución
 // Inicialización
 // ══════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', async () => {
+  initTheme();
   tickClock();
   setInterval(tickClock, 1000);
   document.getElementById('endpoint').value =
@@ -618,7 +930,7 @@ async function ejecutar() {
     : (FLUJOS[flujoActivo]?.pasos.length ?? 1);
 
   setLoading(true, 'Ejecutando flujo…');
-  startProgress(totalPasos);
+  startProgress(totalPasos, flujoActivo === 'todos' ? 'Todos los flujos' : FLUJOS[flujoActivo]?.label);
 
   try {
     const r = await fetch('/runner/api/run', {
@@ -629,6 +941,7 @@ async function ejecutar() {
         filePath:       fp,
         valoresPorPaso: valoresPorPaso,
         endpoint:       endpoint,
+        testName:       (document.getElementById('test-name')?.value || '').trim(),
       }),
     });
     const d = await r.json();
@@ -650,6 +963,12 @@ async function ejecutar() {
       ok ? 'ok' : 'err'
     );
     incrementarBillNumbers();
+    // Auto-actualizar reportes si la pestaña está visible
+    setTimeout(() => {
+      if (document.getElementById('tab-reportes').style.display !== 'none') {
+        cargarReportes();
+      }
+    }, 600);
   } catch(e) {
     finishProgress(false);
     toast('Error en ejecución: ' + e.message, 'err');
@@ -851,16 +1170,19 @@ function renderResults(res, resumen) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// Descarga Matriz de Pruebas (CSV)
+// Descarga Matriz de Pruebas (CSV - desde resultados en memoria)
 // ══════════════════════════════════════════════════════════════
 function descargarMatriz() {
   if (!resultados.length) return toast('No hay resultados para exportar.', 'err');
 
-  const COLS = ['Flujo', 'Paso', 'Archivo', 'Campos Modificados', 'UUID Generado', 'HTTP', 'Resultado', 'Mensaje', 'Timestamp'];
+  const COLS = [
+    'Flujo', 'Paso', 'Archivo', 'Campos Modificados',
+    'UUID Generado', 'Request Enviado', 'Response del API',
+    'HTTP', 'Resultado', 'Mensaje', 'Timestamp',
+  ];
 
   const csvEscape = v => {
     const s = v == null ? '' : String(v);
-    // Si contiene coma, comilla o salto de línea, rodear con comillas y escapar comillas internas
     return (s.includes(',') || s.includes('"') || s.includes('\n'))
       ? '"' + s.replace(/"/g, '""') + '"'
       : s;
@@ -870,12 +1192,15 @@ function descargarMatriz() {
 
   resultados.forEach(r => {
     const campos = (r.cambios || []).map(c => `${c.campo}=${c.valor}`).join(' | ');
+    const reqStr = r.requestJson ? JSON.stringify(r.requestJson) : '';
     rows.push([
       r.flujoLabel || r.flujo || '',
       r.paso       || r.tipo  || '',
       r.file       || '',
       campos,
       r.uuidGenerado || '',
+      reqStr,
+      r.responseBody || '',
       r.statusCode   != null ? r.statusCode : '',
       r.resultado    || '',
       r.mensaje      || '',
@@ -883,7 +1208,7 @@ function descargarMatriz() {
     ].map(csvEscape).join(','));
   });
 
-  const bom  = '\uFEFF';  // BOM para que Excel abra correctamente con acentos
+  const bom  = '\uFEFF';
   const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const ts   = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
@@ -943,56 +1268,129 @@ function limpiarHistorial() {
 }
 
 // ── Progress bar helpers ──────────────────────────────────────
-let _progressTimer = null;
+// Cada paso del backend tarda: 1er paso ≈ 8s (sin delay inicial),
+// pasos siguientes ≈ 3s (sleep) + 8s (API) = 11s.
+// estimatedMs = 8000 + (N-1) * 11000  →  1 paso:8s | 2 pasos:19s | 6 pasos:63s
 
-function startProgress(totalSteps) {
-  clearInterval(_progressTimer);
-  const wrap = document.getElementById('progress-wrap');
-  const fill = document.getElementById('progress-fill');
-  const pct  = document.getElementById('progress-pct');
-  const lbl  = document.getElementById('progress-step-lbl');
-  fill.classList.remove('done');
+let _progressRAF   = null;
+let _progressStart = null;
+let _progressEstMs = 8000;
+let _stepDots      = [];
+
+function _secsToStr(ms) {
+  const s = Math.floor(ms / 1000);
+  return s < 60 ? s + 's' : Math.floor(s/60) + 'm ' + (s%60) + 's';
+}
+
+function startProgress(totalSteps, flujoLabel) {
+  cancelAnimationFrame(_progressRAF);
+  _progressStart = performance.now();
+  // Tiempo estimado realista por número de pasos
+  _progressEstMs = 8000 + Math.max(0, totalSteps - 1) * 11000;
+
+  const panel = document.getElementById('progress-panel');
+  const fill  = document.getElementById('progress-fill');
+  const pct   = document.getElementById('progress-pct');
+  const lbl   = document.getElementById('progress-lbl-main');
+  const sub   = document.getElementById('progress-sub');
+  const time  = document.getElementById('progress-time');
+  const spin  = document.getElementById('progress-spin');
+  const stRow = document.getElementById('progress-steps-row');
+
   fill.style.width = '0%';
+  fill.className   = 'progress-fill';
   pct.textContent  = '0%';
-  lbl.textContent  = 'Enviando requests…';
-  wrap.classList.add('active');
+  lbl.textContent  = flujoLabel ? `Ejecutando: ${flujoLabel}` : 'Ejecutando flujo…';
+  sub.textContent  = `${totalSteps} paso${totalSteps > 1 ? 's' : ''}  ·  estimado ~${_secsToStr(_progressEstMs)}`;
+  time.textContent = `0s / ~${_secsToStr(_progressEstMs)}`;
+  spin.style.display = '';
+  panel.classList.add('active');
 
-  // Simula progreso: avanza hasta 90% en intervalos proporcionales al nº de pasos
-  const target  = 90;
-  const stepsPx = totalSteps > 1 ? totalSteps * 2 : 3;
-  const interval = Math.max(300, Math.round(1800 / stepsPx));
-  let current = 0;
-  const increment = target / stepsPx;
-  _progressTimer = setInterval(() => {
-    current = Math.min(current + increment, target);
-    const rounded = Math.round(current);
+  // Chips de pasos (si hay flujo activo con pasos conocidos)
+  stRow.innerHTML = '';
+  _stepDots = [];
+  const fl = FLUJOS[flujoActivo];
+  if (fl && flujoActivo !== 'todos') {
+    fl.pasos.forEach((p, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'progress-step-dot';
+      chip.innerHTML = `<span class="sdot"></span>${i+1}. ${esc(p.nombre)}`;
+      stRow.appendChild(chip);
+      _stepDots.push(chip);
+    });
+    if (_stepDots[0]) _stepDots[0].classList.add('running');
+  } else if (flujoActivo === 'todos') {
+    const chip = document.createElement('span');
+    chip.className = 'progress-step-dot running';
+    chip.innerHTML = '<span class="sdot"></span>Todos los flujos';
+    stRow.appendChild(chip);
+    _stepDots.push(chip);
+  }
+
+  // RAF loop — avanza basado en tiempo real transcurrido vs estimado
+  function _tick(now) {
+    const elapsed = now - _progressStart;
+    // Avanza hasta 90% de forma proporcional al tiempo estimado
+    const raw     = Math.min((elapsed / _progressEstMs) * 90, 90);
+    const rounded = Math.round(raw);
     fill.style.width = rounded + '%';
     pct.textContent  = rounded + '%';
-    if (current >= target) clearInterval(_progressTimer);
-  }, interval);
+    time.textContent = `${_secsToStr(elapsed)} / ~${_secsToStr(_progressEstMs)}`;
+
+    // Actualizar chip activo según tiempo estimado por paso
+    if (_stepDots.length > 1) {
+      const msPerStep = _progressEstMs / _stepDots.length;
+      const activeIdx = Math.min(Math.floor(elapsed / msPerStep), _stepDots.length - 1);
+      _stepDots.forEach((d, i) => {
+        d.classList.remove('running', 'done');
+        if (i < activeIdx)  d.classList.add('done');
+        if (i === activeIdx) d.classList.add('running');
+      });
+    }
+
+    _progressRAF = requestAnimationFrame(_tick);
+  }
+  _progressRAF = requestAnimationFrame(_tick);
 }
 
 function finishProgress(success) {
-  clearInterval(_progressTimer);
-  const wrap = document.getElementById('progress-wrap');
-  const fill = document.getElementById('progress-fill');
-  const pct  = document.getElementById('progress-pct');
-  const lbl  = document.getElementById('progress-step-lbl');
+  cancelAnimationFrame(_progressRAF);
+  const panel = document.getElementById('progress-panel');
+  const fill  = document.getElementById('progress-fill');
+  const pct   = document.getElementById('progress-pct');
+  const lbl   = document.getElementById('progress-lbl-main');
+  const sub   = document.getElementById('progress-sub');
+  const time  = document.getElementById('progress-time');
+  const spin  = document.getElementById('progress-spin');
+
+  const elapsed = _progressStart ? performance.now() - _progressStart : 0;
+
   fill.style.width = '100%';
   pct.textContent  = '100%';
+  time.textContent = `${_secsToStr(elapsed)} / ${_secsToStr(elapsed)}`;
+  spin.style.display = 'none';
+
+  // Todos los chips → done o fail
+  _stepDots.forEach(d => {
+    d.classList.remove('running');
+    d.classList.add(success ? 'done' : 'fail');
+  });
+
   if (success) {
     fill.classList.add('done');
-    lbl.textContent = 'Completado';
+    lbl.textContent = '✓ Ejecución completada';
+    sub.textContent = `Tiempo real: ${_secsToStr(elapsed)}`;
   } else {
-    fill.style.background = 'var(--fail)';
-    lbl.textContent = 'Finalizado con errores';
+    fill.classList.add('error');
+    lbl.textContent = '✕ Finalizado con errores';
+    sub.textContent = `Tiempo real: ${_secsToStr(elapsed)}`;
   }
+
   setTimeout(() => {
-    wrap.classList.remove('active');
+    panel.classList.remove('active');
     fill.style.width = '0%';
-    fill.style.background = '';
-    fill.classList.remove('done');
-  }, 1800);
+    fill.classList.remove('done', 'error');
+  }, 2400);
 }
 // ─────────────────────────────────────────────────────────────
 
@@ -1027,6 +1425,295 @@ function toast(msg, type = 'inf', duration = 4000) {
     el.classList.remove('show');
     setTimeout(() => el.remove(), 300);
   }, duration);
+}
+
+// ══════════════════════════════════════════════════════════════
+// Tema claro / oscuro
+// ══════════════════════════════════════════════════════════════
+function initTheme() {
+  const saved = localStorage.getItem('go2facto_theme') || 'dark';
+  applyTheme(saved, false);
+}
+
+function applyTheme(theme, updateCharts = true) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('go2facto_theme', theme);
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = theme === 'light' ? '🌙 Oscuro' : '☀️ Claro';
+  if (updateCharts && _chartDonut) {
+    const isDark    = theme === 'dark';
+    const gridColor = isDark ? '#2a2d3e' : '#dde1f0';
+    const tickColor = isDark ? '#64748b' : '#8896b0';
+    const borderClr = isDark ? '#1f2335' : '#ffffff';
+    _chartDonut.data.datasets[0].borderColor = borderClr;
+    _chartDonut.update();
+    if (_chartBar) {
+      _chartBar.options.scales.x.grid.color  = gridColor;
+      _chartBar.options.scales.x.ticks.color = tickColor;
+      _chartBar.options.scales.y.grid.color  = gridColor;
+      _chartBar.options.scales.y.ticks.color = tickColor;
+      _chartBar.options.plugins.legend.labels.color = tickColor;
+      _chartBar.update();
+    }
+  }
+}
+
+function toggleTheme() {
+  const curr = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(curr === 'dark' ? 'light' : 'dark');
+}
+
+// ══════════════════════════════════════════════════════════════
+// Tabs
+// ══════════════════════════════════════════════════════════════
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabName);
+  });
+  document.getElementById('tab-resultados').style.display = tabName === 'resultados' ? '' : 'none';
+  document.getElementById('tab-reportes').style.display   = tabName === 'reportes'   ? '' : 'none';
+  if (tabName === 'reportes') cargarReportes();
+}
+
+// ══════════════════════════════════════════════════════════════
+// Módulo de Reportes
+// ══════════════════════════════════════════════════════════════
+let _reportes = [];
+
+async function cargarReportes() {
+  try {
+    const r = await fetch('/runner/api/reportes');
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    _reportes = d.reportes || [];
+    renderReportes();
+  } catch(e) {
+    toast('Error al cargar reportes: ' + e.message, 'err');
+  }
+}
+
+function renderReportes() {
+  const tbody = document.getElementById('rep-tbody');
+  const empty = document.getElementById('rep-empty');
+  const wrap  = document.getElementById('rep-table-wrap');
+
+  // Resumen numérico
+  const totalPass = _reportes.reduce((a, r) => a + (r.pass  || 0), 0);
+  const totalFail = _reportes.reduce((a, r) => a + (r.fail  || 0), 0);
+  const totalErr  = _reportes.reduce((a, r) => a + (r.error || 0), 0);
+  document.getElementById('rep-total').textContent = _reportes.length;
+  document.getElementById('rep-pass').textContent  = totalPass;
+  document.getElementById('rep-fail').textContent  = totalFail;
+  document.getElementById('rep-err').textContent   = totalErr;
+
+  if (!_reportes.length) {
+    empty.style.display = '';
+    wrap.style.display  = 'none';
+    return;
+  }
+  empty.style.display = 'none';
+  wrap.style.display  = '';
+  tbody.innerHTML = '';
+
+  _reportes.forEach((rep, idx) => {
+    const pct = rep.pct || 0;
+    const pctColor = pct >= 80 ? 'var(--pass)' : pct >= 50 ? 'var(--warn)' : 'var(--fail)';
+
+    const tr = document.createElement('tr');
+    tr.className = 'result-row';
+    tr.dataset.idx = idx;
+    tr.onclick = () => verDetalleReporte(rep.runId, idx, tr);
+    const testNameCell = rep.testName
+      ? `<span style="font-weight:600;color:var(--txt)">${esc(rep.testName)}</span>`
+      : `<span style="color:var(--muted);font-size:0.76rem;font-style:italic">— sin nombre —</span>`;
+    tr.innerHTML = `
+      <td class="toggle-icon">▶</td>
+      <td><code style="font-size:0.8rem;color:var(--acc)">${esc(rep.runId)}</code></td>
+      <td style="font-size:0.82rem;max-width:160px">${testNameCell}</td>
+      <td style="white-space:nowrap;color:var(--muted);font-size:0.78rem">${esc(rep.timestamp)}</td>
+      <td style="font-size:0.82rem">${esc(rep.flujo)}</td>
+      <td style="font-size:0.82rem">${esc(rep.archivo)}</td>
+      <td style="text-align:center">${rep.total}</td>
+      <td style="text-align:center;color:var(--pass);font-weight:700">${rep.pass}</td>
+      <td style="text-align:center;color:var(--fail);font-weight:700">${rep.fail}</td>
+      <td style="text-align:center;color:var(--warn);font-weight:700">${rep.error}</td>
+      <td style="text-align:center;font-weight:700;color:${pctColor}">${pct}%</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn-ghost" style="font-size:0.72rem;padding:4px 8px"
+            onclick="event.stopPropagation();dlJson('${esc(rep.runId)}')">&#128196; JSON</button>
+          <button class="btn-ghost" style="font-size:0.72rem;padding:4px 8px"
+            onclick="event.stopPropagation();dlHtml('${esc(rep.runId)}')">&#127760; HTML</button>
+          <button class="btn-ghost" style="font-size:0.72rem;padding:4px 8px"
+            onclick="event.stopPropagation();dlMatrix('${esc(rep.runId)}')">&#128202; CSV</button>
+        </div>
+      </td>
+      <td>
+        <button class="btn-danger" style="font-size:0.72rem;padding:4px 9px" title="Borrar este reporte"
+          onclick="event.stopPropagation();borrarReporte('${esc(rep.runId)}', this)">🗑</button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+async function verDetalleReporte(runId, idx, trEl) {
+  // Toggle icon
+  const detailSection = document.getElementById('rep-detail-section');
+  const currentId = document.getElementById('rep-detail-id').textContent;
+
+  // Deselect all rows
+  document.querySelectorAll('#rep-tbody tr.result-row').forEach(r => {
+    r.querySelector('.toggle-icon').textContent = '▶';
+  });
+
+  // If clicking same run → close detail
+  if (currentId === runId && detailSection.style.display !== 'none') {
+    detailSection.style.display = 'none';
+    return;
+  }
+
+  if (trEl) trEl.querySelector('.toggle-icon').textContent = '▼';
+  document.getElementById('rep-detail-id').textContent = runId;
+
+  try {
+    const r = await fetch(`/runner/api/reportes/${runId}`);
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    renderRepDetalle(runId, d.reporte);
+    detailSection.style.display = '';
+    detailSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch(e) {
+    toast('Error al cargar detalle: ' + e.message, 'err');
+  }
+}
+
+function cerrarDetalle() {
+  document.getElementById('rep-detail-section').style.display = 'none';
+  document.getElementById('rep-detail-id').textContent = '';
+  document.querySelectorAll('#rep-tbody tr.result-row').forEach(r => {
+    r.querySelector('.toggle-icon').textContent = '▶';
+  });
+}
+
+function renderRepDetalle(runId, reporte) {
+  const tbody  = document.getElementById('rep-detail-tbody');
+  const actDiv = document.getElementById('rep-detail-actions');
+  const rs     = reporte.resultados || [];
+
+  // Botones de descarga del run
+  actDiv.innerHTML = `
+    <button class="btn-ghost" onclick="dlJson('${esc(runId)}')" style="font-size:0.82rem;padding:7px 14px">⬇ JSON</button>
+    <button class="btn-ghost" onclick="dlHtml('${esc(runId)}')" style="font-size:0.82rem;padding:7px 14px">⬇ Reporte HTML</button>
+    <button class="btn-ghost" onclick="dlMatrix('${esc(runId)}')" style="font-size:0.82rem;padding:7px 14px">⬇ Matriz CSV</button>`;
+
+  tbody.innerHTML = '';
+  rs.forEach((r, idx) => {
+    const badgeCls = { PASS:'badge-pass', FAIL:'badge-fail', ERROR:'badge-error', OMITIDO:'badge-omitido' }[r.resultado] || 'badge-omitido';
+    const camposStr = (r.cambios || []).map(c => `${c.campo}=${c.valor}`).join(', ') || '—';
+    const uuidHtml  = r.uuidGenerado
+      ? `<span class="uuid-chip" title="${esc(r.uuidGenerado)}" onclick="copiarUuid(this,'${esc(r.uuidGenerado)}')">${esc(r.uuidGenerado)}</span>`
+      : '<span style="color:var(--muted)">—</span>';
+
+    const tr = document.createElement('tr');
+    tr.className  = 'result-row';
+    tr.dataset.idx = `rd-${idx}`;
+    tr.onclick = () => toggleRepRow(idx);
+    tr.innerHTML = `
+      <td class="toggle-icon">▶</td>
+      <td>${esc(r.flujoLabel || r.flujo || '—')}</td>
+      <td>${esc(r.paso || r.tipo || '—')}</td>
+      <td>${esc(r.file || '—')}</td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(camposStr)}">${esc(camposStr)}</td>
+      <td>${uuidHtml}</td>
+      <td>${r.statusCode != null ? httpBadge(r.statusCode) : '—'}</td>
+      <td><span class="badge ${badgeCls}">${r.resultado}</span></td>
+      <td style="max-width:200px;color:var(--muted);font-size:.78rem">${esc(r.mensaje || '—')}</td>
+      <td style="white-space:nowrap;color:var(--muted);font-size:.75rem">${r.timestamp || '—'}</td>`;
+    tbody.appendChild(tr);
+
+    // Fila de detalle expandible
+    const dtr = document.createElement('tr');
+    dtr.className = 'detail-row';
+    dtr.innerHTML = `<td colspan="10"><div class="detail-body" id="reprow-${idx}">
+      <div class="detail-grid">
+        ${r.requestJson   ? detailBox('Request Enviado',  JSON.stringify(r.requestJson, null, 2)) : ''}
+        ${r.responseBody  ? detailBox('Response del API', r.responseBody)  : ''}
+        ${r.xmlOriginal   ? detailBox('XML Original',     r.xmlOriginal)   : ''}
+        ${r.xmlActualizado ? detailBox('XML Modificado',  r.xmlActualizado) : ''}
+        ${r.cambios?.length ? detailBox('Cambios realizados', JSON.stringify(r.cambios, null, 2)) : ''}
+        ${r.uuidGenerado  ? detailBox('UUID Generado',    r.uuidGenerado)  : ''}
+      </div>
+    </div></td>`;
+    tbody.appendChild(dtr);
+  });
+}
+
+function toggleRepRow(idx) {
+  const body = document.getElementById(`reprow-${idx}`);
+  const tr   = document.querySelector(`tr.result-row[data-idx="rd-${idx}"]`);
+  if (!body) return;
+  const open = body.classList.toggle('open');
+  if (tr) tr.querySelector('.toggle-icon').textContent = open ? '▼' : '▶';
+}
+
+// Descargas desde módulo de reportes
+function dlJson(runId)   { window.open(`/runner/api/download/json/${runId}`,   '_blank'); }
+function dlHtml(runId)   { window.open(`/runner/api/download/html/${runId}`,   '_blank'); }
+function dlMatrix(runId) { window.open(`/runner/api/download/matrix/${runId}`, '_blank'); }
+
+async function borrarReporte(runId, btn) {
+  if (!confirm(`¿Eliminar el reporte ${runId}? Esta acción no se puede deshacer.`)) return;
+  btn.disabled = true;
+  try {
+    const r = await fetch(`/runner/api/reportes/${runId}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    toast(`Reporte ${runId} eliminado.`, 'ok');
+    // Si es el que está en detalle, cerrarlo
+    if (document.getElementById('rep-detail-id').textContent === runId) cerrarDetalle();
+    await cargarReportes();
+  } catch(e) {
+    btn.disabled = false;
+    toast('Error al borrar: ' + e.message, 'err');
+  }
+}
+
+async function borrarTodosReportes() {
+  const n = _reportes.length;
+  if (!n) return toast('No hay reportes para borrar.', 'inf');
+  if (!confirm(`¿Eliminar los ${n} reporte(s) guardados? Esta acción no se puede deshacer.`)) return;
+  try {
+    const r = await fetch('/runner/api/reportes', { method: 'DELETE' });
+    const d = await r.json();
+    if (!d.ok) throw new Error(d.error);
+    toast(`${d.deleted} reporte(s) eliminados.`, 'ok');
+    cerrarDetalle();
+    await cargarReportes();
+  } catch(e) {
+    toast('Error al borrar: ' + e.message, 'err');
+  }
+}
+
+async function descargarMatrizTodas() {
+  try {
+    const r = await fetch('/runner/api/download/matrix-all');
+    if (!r.ok) {
+      let errMsg = 'Error en el servidor';
+      try { const d = await r.json(); errMsg = d.error || errMsg; } catch(_) {}
+      throw new Error(errMsg);
+    }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const ts   = new Date().toISOString().slice(0,19).replace(/[T:]/g,'-');
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `matriz-completa-${ts}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Matriz completa descargada.', 'ok');
+  } catch(e) {
+    toast('Error al descargar: ' + e.message, 'err');
+  }
 }
 </script>
 </body>

@@ -42,6 +42,45 @@ EXTENSIONES_VALIDAS = {".json", ".txt", ".log"}
 # Historial en memoria (persistido mientras el server esté vivo)
 _historial: list[dict] = []
 
+# ─── Directorios de reportes ──────────────────────────────────────────────────
+REPORTS_DIR        = BASE_DIR / "reports"
+REPORTS_JSON_DIR   = REPORTS_DIR / "json"
+REPORTS_HTML_DIR   = REPORTS_DIR / "html"
+REPORTS_MATRIX_DIR = REPORTS_DIR / "matrix"
+for _d in [REPORTS_DIR, REPORTS_JSON_DIR, REPORTS_HTML_DIR, REPORTS_MATRIX_DIR]:
+    _d.mkdir(parents=True, exist_ok=True)
+
+
+def limpiar_reportes_viejos(dias: int = 3) -> int:
+    """
+    Elimina reportes (json + html + csv) con más de `dias` días de antigüedad.
+    Devuelve el número de runs eliminados.
+    """
+    from datetime import timezone
+    limite = datetime.now(tz=timezone.utc).timestamp() - dias * 86400
+    eliminados = 0
+    if not REPORTS_JSON_DIR.exists():
+        return 0
+    for f in list(REPORTS_JSON_DIR.iterdir()):
+        if f.suffix != ".json" or not f.name.startswith("run-"):
+            continue
+        if f.stat().st_mtime < limite:
+            run_id = f.stem[4:]  # quitar "run-"
+            for carpeta, ext in [
+                (REPORTS_JSON_DIR,   ".json"),
+                (REPORTS_HTML_DIR,   ".html"),
+                (REPORTS_MATRIX_DIR, ".csv"),
+            ]:
+                victim = carpeta / f"run-{run_id}{ext}"
+                if victim.exists():
+                    victim.unlink(missing_ok=True)
+            eliminados += 1
+    return eliminados
+
+
+# Limpiar al arrancar el servidor
+_eliminated_on_start = limpiar_reportes_viejos()
+
 
 # ─── Definición de Flujos ─────────────────────────────────────────────────────
 #
@@ -625,6 +664,210 @@ def enviar_http(payload: dict, endpoint: str) -> tuple[int, str]:
 
 # ─── Rutas Flask ──────────────────────────────────────────────────────────────
 
+# ─── Generación de reportes ───────────────────────────────────────────────────
+
+def _html_escape(s) -> str:
+    """Escapa caracteres HTML para uso seguro en templates."""
+    return (str(s) if s is not None else "").replace(
+        "&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _csv_cell(v) -> str:
+    """Escapa un valor para celda CSV (RFC 4180)."""
+    s = "" if v is None else str(v)
+    if any(c in s for c in [",", '"', "\n", "\r"]):
+        return '"' + s.replace('"', '""') + '"'
+    return s
+
+
+def generar_csv_matriz(resultados: list[dict], run_ts: str = "") -> str:
+    """Genera CSV con la matriz de pruebas completa (UTF-8, separador coma)."""
+    COLS = [
+        "Caso de Prueba", "Fecha", "Archivo", "Flujo", "Paso",
+        "Campos Modificados", "UUID Generado",
+        "Request Enviado", "Response del API",
+        "Resultado Esperado", "Resultado Obtenido", "Estatus",
+        "Código HTTP", "Mensaje", "Observaciones",
+    ]
+    rows = [",".join(_csv_cell(c) for c in COLS)]
+    for i, r in enumerate(resultados, 1):
+        campos_mod = " | ".join(
+            f"{c['campo']}={c['valor']}" for c in (r.get("cambios") or [])
+        )
+        req_str = (
+            json.dumps(r.get("requestJson"), ensure_ascii=False)
+            if r.get("requestJson") else ""
+        )
+        rows.append(",".join(_csv_cell(v) for v in [
+            str(i),
+            r.get("timestamp") or run_ts,
+            r.get("file", ""),
+            r.get("flujoLabel") or r.get("flujo", ""),
+            r.get("paso") or r.get("tipo", ""),
+            campos_mod,
+            r.get("uuidGenerado") or "",
+            req_str,
+            r.get("responseBody") or "",
+            "PASS",
+            r.get("resultado", ""),
+            r.get("resultado", ""),
+            str(r.get("statusCode")) if r.get("statusCode") is not None else "",
+            r.get("mensaje", ""),
+            "",
+        ]))
+    return "\r\n".join(rows)
+
+
+def generar_html_reporte(run_id: str, run_data: dict, resumen: dict) -> str:
+    """Genera HTML esquemático y autocontenido del reporte de ejecución."""
+    resultados = run_data.get("resultados", [])
+    flujo_key  = run_data.get("flujo", "")
+    ts         = run_data.get("timestamp", "")
+    endpoint   = run_data.get("endpoint", "")
+    archivo    = run_data.get("file", "")
+    pas   = resumen.get("pass",    0)
+    fail  = resumen.get("fail",    0)
+    err   = resumen.get("error",   0)
+    omit  = resumen.get("omitido", 0)
+    total = resumen.get("total",   0)
+    pct   = resumen.get("pct_exito", 0)
+
+    def badge_html(resultado: str) -> str:
+        clr = {
+            "PASS":    "#22c55e", "FAIL": "#ef4444",
+            "ERROR":   "#f59e0b", "OMITIDO": "#94a3b8",
+        }.get(resultado, "#94a3b8")
+        return (
+            f'<span style="padding:3px 9px;border-radius:4px;font-size:.75rem;'
+            f'font-weight:700;color:{clr};background:{clr}22;'
+            f'border:1px solid {clr}55">{resultado}</span>'
+        )
+
+    def pre_box(label: str, content) -> str:
+        safe = _html_escape(content or "—")
+        return (
+            '<div>'
+            f'<p style="font-size:.72rem;color:#64748b;text-transform:uppercase;'
+            f'font-weight:600;margin-bottom:5px">{label}</p>'
+            f'<pre style="background:#0f172a;color:#e2e8f0;padding:10px;'
+            f'border-radius:6px;font-size:.7rem;max-height:200px;overflow:auto;'
+            f'white-space:pre-wrap;word-break:break-all">{safe}</pre>'
+            '</div>'
+        )
+
+    tbody_rows = []
+    for i, r in enumerate(resultados, 1):
+        campos = " | ".join(
+            f"{c['campo']}={c['valor']}" for c in (r.get("cambios") or [])
+        ) or "—"
+        req_str  = json.dumps(r.get("requestJson") or {}, ensure_ascii=False, indent=2) if r.get("requestJson") else "—"
+        resp_str = r.get("responseBody") or "—"
+        xml_orig = r.get("xmlOriginal") or "—"
+        xml_new  = r.get("xmlActualizado") or "—"
+        uuid_val = _html_escape(r.get("uuidGenerado") or "—")
+        sc       = r.get("statusCode")
+        sc_html  = (
+            f'<b style="color:{"#22c55e" if sc and 200 <= sc < 300 else "#ef4444"}">{sc}</b>'
+            if sc is not None else "—"
+        )
+        res = r.get("resultado", "—")
+        msg = _html_escape(r.get("mensaje") or "")
+        detail = (
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:14px 16px">'
+            + pre_box("XML Original",     xml_orig)
+            + pre_box("XML Modificado",   xml_new)
+            + pre_box("Request Enviado",  req_str)
+            + pre_box("Response del API", resp_str)
+            + '</div>'
+        )
+        tbody_rows.append(
+            f'<tr style="border-bottom:1px solid #e8ecf5">'
+            f'<td style="padding:8px 10px;color:#94a3b8">{i}</td>'
+            f'<td style="padding:8px 10px">{_html_escape(r.get("flujoLabel") or r.get("flujo","—"))}</td>'
+            f'<td style="padding:8px 10px">{_html_escape(r.get("paso") or r.get("tipo","—"))}</td>'
+            f'<td style="padding:8px 10px">{_html_escape(r.get("file","—"))}</td>'
+            f'<td style="padding:8px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{_html_escape(campos)}">{_html_escape(campos)}</td>'
+            f'<td style="padding:8px 10px;font-family:monospace;font-size:.78rem;color:#0ea5e9">{uuid_val}</td>'
+            f'<td style="padding:8px 10px">{sc_html}</td>'
+            f'<td style="padding:8px 10px">{badge_html(res)}</td>'
+            f'<td style="padding:8px 10px;color:#64748b;font-size:.78rem">{msg}</td>'
+            f'<td style="padding:8px 10px;color:#94a3b8;font-size:.75rem;white-space:nowrap">{_html_escape(r.get("timestamp","—"))}</td>'
+            f'</tr>'
+            f'<tr style="background:#f8fafc;border-bottom:2px solid #e8ecf5">'
+            f'<td colspan="10" style="padding:0">'
+            f'<details><summary style="cursor:pointer;padding:8px 16px;font-size:.8rem;color:#4f6ef7;list-style:none">▶ Ver detalle (Request / Response / XML)</summary>'
+            f'{detail}</details>'
+            f'</td></tr>'
+        )
+
+    tbody_html = "\n".join(tbody_rows)
+    gen_ts     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    css = (
+        "*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }\n"
+        "body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; background: #f0f2f8; color: #1e2235; }\n"
+        ".page { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }\n"
+        ".hdr { background: #1e2235; color: #fff; border-radius: 12px; padding: 24px 28px; margin-bottom: 24px; }\n"
+        ".hdr h1 { font-size: 1.4rem; font-weight: 700; color: #4f6ef7; margin-bottom: 12px; }\n"
+        ".hdr-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }\n"
+        ".hdr-meta span { font-size: .82rem; color: #94a3b8; }\n"
+        ".hdr-meta strong { color: #e2e8f0; }\n"
+        ".summary { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 24px; }\n"
+        ".sc { background: #fff; border-radius: 10px; padding: 16px; text-align: center; border: 1px solid #dde1f0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }\n"
+        ".sc .val { font-size: 2rem; font-weight: 700; }\n"
+        ".sc .lbl { font-size: .7rem; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }\n"
+        ".sc-p .val { color: #22c55e; } .sc-f .val { color: #ef4444; }\n"
+        ".sc-e .val { color: #f59e0b; } .sc-pct .val { color: #4f6ef7; }\n"
+        ".section { background: #fff; border-radius: 10px; border: 1px solid #dde1f0; margin-bottom: 20px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06); }\n"
+        ".sec-hdr { background: #f5f7fc; padding: 12px 18px; border-bottom: 1px solid #dde1f0; font-weight: 600; font-size: .9rem; }\n"
+        "table { width: 100%; border-collapse: collapse; font-size: .82rem; }\n"
+        "th { background: #f5f7fc; color: #64748b; font-size: .7rem; text-transform: uppercase; letter-spacing: .05em; padding: 9px 10px; text-align: left; border-bottom: 1px solid #dde1f0; }\n"
+        "details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }\n"
+        ".footer { text-align: center; color: #94a3b8; font-size: .78rem; margin-top: 28px; padding-top: 18px; border-top: 1px solid #dde1f0; }\n"
+        "@media (max-width: 600px) { .summary { grid-template-columns: repeat(2,1fr); } }\n"
+        "@media print { body { background: #fff; } .page { padding: 10px; } }\n"
+    )
+
+    return (
+        '<!DOCTYPE html>\n<html lang="es">\n<head>\n'
+        '  <meta charset="UTF-8"/>\n'
+        '  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>\n'
+        f'  <title>Go2Facto · Reporte {_html_escape(run_id)}</title>\n'
+        f'  <style>{css}</style>\n'
+        '</head>\n<body>\n<div class="page">\n'
+        '  <div class="hdr">\n'
+        '    <h1>&#128203; Go2Facto · Reporte de Ejecución</h1>\n'
+        '    <div class="hdr-meta">\n'
+        f'      <span><strong>Run ID:</strong> {_html_escape(run_id)}</span>\n'
+        f'      <span><strong>Fecha:</strong> {_html_escape(ts)}</span>\n'
+        f'      <span><strong>Flujo:</strong> {_html_escape(flujo_key)}</span>\n'
+        f'      <span><strong>Archivo:</strong> {_html_escape(archivo)}</span>\n'
+        f'      <span><strong>Endpoint:</strong> {_html_escape(endpoint)}</span>\n'
+        '    </div>\n  </div>\n'
+        '  <div class="summary">\n'
+        f'    <div class="sc"><div class="val">{total}</div><div class="lbl">Total Pasos</div></div>\n'
+        f'    <div class="sc sc-p"><div class="val">{pas}</div><div class="lbl">PASS</div></div>\n'
+        f'    <div class="sc sc-f"><div class="val">{fail}</div><div class="lbl">FAIL</div></div>\n'
+        f'    <div class="sc sc-e"><div class="val">{err + omit}</div><div class="lbl">ERROR/OMIT</div></div>\n'
+        f'    <div class="sc sc-pct"><div class="val">{pct}%</div><div class="lbl">% Éxito</div></div>\n'
+        '  </div>\n'
+        '  <div class="section">\n'
+        '    <div class="sec-hdr">Resultados por Paso</div>\n'
+        '    <div style="overflow-x:auto">\n'
+        '      <table><thead><tr>\n'
+        '        <th>#</th><th>Flujo</th><th>Paso</th><th>Archivo</th>'
+        '<th>Campos Modificados</th><th>UUID</th><th>HTTP</th>'
+        '<th>Resultado</th><th>Mensaje</th><th>Timestamp</th>\n'
+        '      </tr></thead>\n'
+        f'      <tbody>{tbody_html}</tbody></table>\n'
+        '    </div>\n  </div>\n'
+        f'  <div class="footer">Generado por Go2Facto QA Runner &middot; {gen_ts}</div>\n'
+        '</div>\n</body>\n</html>'
+    )
+
+
+# ─── Rutas Flask ──────────────────────────────────────────────────────────────
+
 @app.route("/health")
 def health():
     return jsonify({"status": "ok"})
@@ -712,6 +955,7 @@ def api_run():
         file_path   = str(body.get("filePath", "")).strip()
         valores_raw = body.get("valoresPorPaso", [])
         endpoint    = str(body.get("endpoint", DEFAULT_ENDPOINT)).strip()
+        test_name   = str(body.get("testName", "")).strip()[:120]
 
         if not flujo_key:
             return jsonify({"ok": False, "error": "flujoKey es requerido."}), 400
@@ -751,6 +995,7 @@ def api_run():
             "runId":      run_id,
             "timestamp":  run_ts,
             "flujoKey":   flujo_key,
+            "testName":   test_name,
             "file":       Path(file_path).name if file_path else "múltiples",
             "endpoint":   endpoint,
             "resultados": todos_resultados,
@@ -766,19 +1011,49 @@ def api_run():
         err  = sum(1 for r in todos_resultados if r["resultado"] == "ERROR")
         omit = sum(1 for r in todos_resultados if r["resultado"] == "OMITIDO")
 
+        resumen = {
+            "total":     totales,
+            "pass":      pas,
+            "fail":      fail,
+            "error":     err,
+            "omitido":   omit,
+            "pct_exito": round((pas / totales * 100) if totales else 0, 1),
+        }
+
+        # ── Persistir reportes en disco ───────────────────────────────────────
+        try:
+            run_export = {
+                "execution_id": run_id,
+                "timestamp":    run_ts,
+                "testName":     test_name,
+                "endpoint":     endpoint,
+                "file":         Path(file_path).name if file_path else "múltiples",
+                "flujo":        flujo_key,
+                "resultados":   todos_resultados,
+                "resumen":      resumen,
+            }
+            # JSON
+            (REPORTS_JSON_DIR / f"run-{run_id}.json").write_text(
+                json.dumps(run_export, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            # CSV (con BOM para Excel)
+            csv_str = "\ufeff" + generar_csv_matriz(todos_resultados, run_ts)
+            (REPORTS_MATRIX_DIR / f"run-{run_id}.csv").write_text(
+                csv_str, encoding="utf-8"
+            )
+            # HTML
+            (REPORTS_HTML_DIR / f"run-{run_id}.html").write_text(
+                generar_html_reporte(run_id, run_export, resumen), encoding="utf-8"
+            )
+        except Exception as _save_err:
+            app.logger.warning("Error guardando reportes en disco: %s", _save_err)
+
         return jsonify({
             "ok":         True,
             "runId":      run_id,
             "timestamp":  run_ts,
             "resultados": todos_resultados,
-            "resumen": {
-                "total":   totales,
-                "pass":    pas,
-                "fail":    fail,
-                "error":   err,
-                "omitido": omit,
-                "pct_exito": round((pas / totales * 100) if totales else 0, 1),
-            },
+            "resumen":    resumen,
         })
 
     except Exception as e:
@@ -826,6 +1101,166 @@ def api_download_run():
             json_str,
             mimetype="application/json",
             headers={"Content-Disposition": f"attachment; filename=run-{run_id}.json"},
+        )
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+# ─── Endpoints de Reportes ────────────────────────────────────────────────────
+
+@app.route("/runner/api/reportes", methods=["GET"])
+def api_reportes():
+    """Lista todos los reportes guardados en disco (orden descendente). Limpia los viejos al consultar."""
+    try:
+        limpiar_reportes_viejos()   # auto-limpieza en cada consulta
+        reportes = []
+        if REPORTS_JSON_DIR.exists():
+            for f in sorted(REPORTS_JSON_DIR.iterdir(), reverse=True):
+                if f.suffix == ".json" and f.name.startswith("run-"):
+                    try:
+                        data = json.loads(f.read_text(encoding="utf-8"))
+                        res  = data.get("resumen", {})
+                        reportes.append({
+                            "runId":     data.get("execution_id", f.stem[4:]),
+                            "timestamp": data.get("timestamp", ""),
+                            "testName":  data.get("testName", ""),
+                            "flujo":     data.get("flujo", ""),
+                            "archivo":   data.get("file", ""),
+                            "endpoint":  data.get("endpoint", ""),
+                            "total":     res.get("total",    0),
+                            "pass":      res.get("pass",     0),
+                            "fail":      res.get("fail",     0),
+                            "error":     res.get("error", 0) + res.get("omitido", 0),
+                            "pct":       res.get("pct_exito", 0),
+                        })
+                    except Exception:
+                        pass
+        return jsonify({"ok": True, "reportes": reportes, "total": len(reportes)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/runner/api/reportes/<run_id>", methods=["DELETE"])
+def api_borrar_reporte(run_id):
+    """Elimina todos los archivos de un reporte (json, html, csv)."""
+    try:
+        safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", run_id)[:20]
+        eliminado = False
+        for carpeta, ext in [
+            (REPORTS_JSON_DIR,   ".json"),
+            (REPORTS_HTML_DIR,   ".html"),
+            (REPORTS_MATRIX_DIR, ".csv"),
+        ]:
+            victim = carpeta / f"run-{safe_id}{ext}"
+            if victim.exists():
+                victim.unlink()
+                eliminado = True
+        if not eliminado:
+            return jsonify({"ok": False, "error": f"Reporte '{safe_id}' no encontrado."}), 404
+        # Quitar del historial en memoria si está
+        global _historial
+        _historial = [r for r in _historial if r.get("runId") != safe_id]
+        return jsonify({"ok": True, "deleted": safe_id})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/runner/api/reportes", methods=["DELETE"])
+def api_borrar_todos_reportes():
+    """Elimina TODOS los reportes guardados en disco."""
+    try:
+        total = 0
+        for carpeta in [REPORTS_JSON_DIR, REPORTS_HTML_DIR, REPORTS_MATRIX_DIR]:
+            if carpeta.exists():
+                for f in carpeta.iterdir():
+                    if f.is_file() and f.name.startswith("run-"):
+                        f.unlink(missing_ok=True)
+                        if carpeta == REPORTS_JSON_DIR:
+                            total += 1
+        global _historial
+        _historial = []
+        return jsonify({"ok": True, "deleted": total})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/runner/api/reportes/<run_id>", methods=["GET"])
+def api_reporte_detalle(run_id):
+    """Devuelve el detalle completo de un reporte guardado."""
+    try:
+        safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", run_id)[:20]
+        f = REPORTS_JSON_DIR / f"run-{safe_id}.json"
+        if not f.exists():
+            return jsonify({"ok": False, "error": f"Reporte '{safe_id}' no encontrado."}), 404
+        data = json.loads(f.read_text(encoding="utf-8"))
+        return jsonify({"ok": True, "reporte": data})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/runner/api/download/json/<run_id>", methods=["GET"])
+def api_dl_json(run_id):
+    """Descarga el reporte JSON de una corrida."""
+    safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", run_id)[:20]
+    f = REPORTS_JSON_DIR / f"run-{safe_id}.json"
+    if not f.exists():
+        return jsonify({"ok": False, "error": "Reporte JSON no encontrado."}), 404
+    return Response(
+        f.read_bytes(),
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename=run-{safe_id}.json"},
+    )
+
+
+@app.route("/runner/api/download/html/<run_id>", methods=["GET"])
+def api_dl_html(run_id):
+    """Descarga el reporte HTML esquemático de una corrida."""
+    safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", run_id)[:20]
+    f = REPORTS_HTML_DIR / f"run-{safe_id}.html"
+    if not f.exists():
+        return jsonify({"ok": False, "error": "Reporte HTML no encontrado."}), 404
+    return Response(
+        f.read_bytes(),
+        mimetype="text/html",
+        headers={"Content-Disposition": f"attachment; filename=reporte-{safe_id}.html"},
+    )
+
+
+@app.route("/runner/api/download/matrix/<run_id>", methods=["GET"])
+def api_dl_matrix(run_id):
+    """Descarga la matriz de pruebas CSV de una corrida."""
+    safe_id = re.sub(r"[^a-zA-Z0-9\-]", "", run_id)[:20]
+    f = REPORTS_MATRIX_DIR / f"run-{safe_id}.csv"
+    if not f.exists():
+        return jsonify({"ok": False, "error": "Matriz CSV no encontrada."}), 404
+    return Response(
+        f.read_bytes(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=matriz-{safe_id}.csv"},
+    )
+
+
+@app.route("/runner/api/download/matrix-all", methods=["GET"])
+def api_dl_matrix_all():
+    """Genera y descarga una matriz unificada con TODOS los reportes guardados."""
+    try:
+        todos: list[dict] = []
+        if REPORTS_JSON_DIR.exists():
+            for f in sorted(REPORTS_JSON_DIR.iterdir()):
+                if f.suffix == ".json" and f.name.startswith("run-"):
+                    try:
+                        data = json.loads(f.read_text(encoding="utf-8"))
+                        todos.extend(data.get("resultados", []))
+                    except Exception:
+                        pass
+        if not todos:
+            return jsonify({"ok": False, "error": "No hay reportes guardados aún."}), 404
+        ts  = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv = "\ufeff" + generar_csv_matriz(todos, ts)
+        return Response(
+            csv,
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f"attachment; filename=matriz-completa-{ts}.csv"},
         )
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
